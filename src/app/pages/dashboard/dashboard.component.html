@@ -1,0 +1,33 @@
+<main class="page">
+  <section class="dashboard">
+  <header class="dashboard-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="welcome">Welcome, {{ username() }}</p>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="logout()">Log out</button>
+  </header>
+
+  <section class="loans-section">
+    <h2>Your Loans</h2>
+
+    @if (hasLoans()) {
+      <ul class="loan-list">
+        @for (loan of loans(); track loan.id) {
+          <li class="loan-item">
+            <div>
+              <strong>${{ loan.amount | number: '1.0-0' }}</strong>
+              <span class="loan-status">{{ loan.status }}</span>
+            </div>
+            <span class="loan-date">Applied {{ loan.appliedDate }}</span>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="empty-state">You have no loans</p>
+    }
+  </section>
+
+  <button type="button" class="btn btn-primary">Apply for Loan</button>
+  </section>
+</main>

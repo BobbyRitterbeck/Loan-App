@@ -1,0 +1,29 @@
+<main class="page">
+  <section class="login-card">
+  <h1>Loan Application Portal</h1>
+  <p class="subtitle">Enter your username to continue</p>
+
+  <label class="field">
+    <span>Username</span>
+    <input
+      type="text"
+      [value]="username()"
+      (input)="onUsernameInput($event)"
+      placeholder="e.g. jane.doe"
+      autocomplete="username"
+    />
+  </label>
+
+  <div class="actions">
+    @if (userExists()) {
+      <button type="button" class="btn btn-primary" (click)="login()">Login</button>
+    }
+
+    @if (canCreateAccount()) {
+      <button type="button" class="btn btn-secondary" (click)="createAccount()">
+        Create Account
+      </button>
+    }
+  </div>
+  </section>
+</main>
