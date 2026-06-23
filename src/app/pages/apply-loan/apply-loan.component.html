@@ -37,6 +37,11 @@
       </label>
     </form>
 
-    <a routerLink="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+    <div class="actions">
+      <button type="button" class="btn btn-primary" [disabled]="!canSubmit()" (click)="submit()">
+        Submit Loan
+      </button>
+      <a routerLink="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
   </section>
 </main>

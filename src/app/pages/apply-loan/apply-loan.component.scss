@@ -48,6 +48,16 @@ select:focus {
   outline-offset: 1px;
 }
 
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 a.btn {
   display: inline-block;
   text-decoration: none;

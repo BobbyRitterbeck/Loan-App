@@ -20,6 +20,7 @@ export class DashboardComponent {
 
   readonly loans = computed(() => {
     const name = this.username();
+    this.loanService.loansChanged();
     return name ? this.loanService.getLoansForUser(name) : [];
   });
 
