@@ -1,7 +1,42 @@
 <main class="page">
   <section class="apply-loan">
     <h1>Apply for Loan</h1>
-    <p class="placeholder">Loan application form will go here.</p>
+    <p class="subtitle">Enter your loan details below.</p>
+
+    <form class="application-form">
+      <label class="field">
+        <span>Loan Amount</span>
+        <input
+          type="number"
+          [value]="amount()"
+          (input)="onAmountInput($event)"
+          placeholder="e.g. 5000"
+          min="1"
+        />
+      </label>
+
+      <label class="field">
+        <span>Term Length (months)</span>
+        <input
+          type="number"
+          [value]="termLength()"
+          (input)="onTermLengthInput($event)"
+          placeholder="e.g. 12"
+          min="1"
+        />
+      </label>
+
+      <label class="field">
+        <span>Payment Frequency</span>
+        <select [value]="paymentFrequency()" (change)="onPaymentFrequencyChange($event)">
+          <option value="" disabled>Select frequency</option>
+          @for (frequency of paymentFrequencies; track frequency) {
+            <option [value]="frequency">{{ frequency }}</option>
+          }
+        </select>
+      </label>
+    </form>
+
     <a routerLink="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
   </section>
 </main>
