@@ -1,13 +1,13 @@
 import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { LoanService } from '../../services/loan.service';
 import { SessionService } from '../../services/session.service';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
