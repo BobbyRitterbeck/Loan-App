@@ -10,9 +10,15 @@
           type="number"
           [value]="amount()"
           (input)="onAmountInput($event)"
+          (blur)="onAmountBlur()"
+          [class.input-error]="showAmountError()"
           placeholder="e.g. 5000"
-          min="1"
+          min="2000"
+          max="50000"
         />
+        @if (showAmountError()) {
+          <span class="field-error">Loans are only offered from $2,000-$50,000</span>
+        }
       </label>
 
       <label class="field">

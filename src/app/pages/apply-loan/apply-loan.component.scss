@@ -48,6 +48,20 @@ select:focus {
   outline-offset: 1px;
 }
 
+input.input-error {
+  border-color: #dc2626;
+}
+
+input.input-error:focus {
+  outline-color: #dc2626;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
 .actions {
   display: flex;
   gap: 0.75rem;

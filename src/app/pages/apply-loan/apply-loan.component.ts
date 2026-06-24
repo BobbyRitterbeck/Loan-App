@@ -19,9 +19,14 @@ export class ApplyLoanComponent {
   readonly amount = signal('');
   readonly termLength = signal('');
   readonly paymentFrequency = signal('');
+  readonly amountBlurred = signal(false);
 
   readonly paymentFrequencies = ['biweekly', 'monthly'] as const;
   readonly termLengths = [36, 60] as const;
+
+  readonly showAmountError = computed(
+    () => this.amountBlurred() && !this.loanService.isValidLoanAmount(Number(this.amount())),
+  );
 
   readonly canSubmit = computed(() => {
     const amount = Number(this.amount());
@@ -29,7 +34,7 @@ export class ApplyLoanComponent {
     const frequency = this.paymentFrequency();
 
     return (
-      amount > 0 &&
+      this.loanService.isValidLoanAmount(amount) &&
       this.termLengths.some((length) => String(length) === termLength) &&
       (this.paymentFrequencies as readonly string[]).includes(frequency)
     );
@@ -38,6 +43,10 @@ export class ApplyLoanComponent {
   onAmountInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.amount.set(value);
+  }
+
+  onAmountBlur(): void {
+    this.amountBlurred.set(true);
   }
 
   onTermLengthChange(event: Event): void {

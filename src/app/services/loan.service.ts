@@ -7,6 +7,9 @@ const LOANS_KEY = 'loan-portal-loans';
 
 const PAYMENT_FREQUENCIES = ['biweekly', 'monthly'] as const;
 
+export const MIN_LOAN_AMOUNT = 2000;
+export const MAX_LOAN_AMOUNT = 50_000;
+
 type LoansByUser = Record<string, Loan[]>;
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +22,10 @@ export class LoanService {
   getLoansForUser(username: string): Loan[] {
     const loansByUser = this.storage.getItem<LoansByUser>(LOANS_KEY) ?? {};
     return loansByUser[username] ?? [];
+  }
+
+  isValidLoanAmount(amount: number): boolean {
+    return amount >= MIN_LOAN_AMOUNT && amount <= MAX_LOAN_AMOUNT;
   }
 
   applyForLoan(username: string, application: LoanApplication): Loan | null {
@@ -49,7 +56,7 @@ export class LoanService {
     const { amount, termLength, paymentFrequency } = application;
 
     return (
-      amount > 0 &&
+      this.isValidLoanAmount(amount) &&
       termLength > 0 &&
       PAYMENT_FREQUENCIES.includes(
         paymentFrequency as (typeof PAYMENT_FREQUENCIES)[number],
