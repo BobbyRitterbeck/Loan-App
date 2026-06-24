@@ -20,7 +20,7 @@ export class ApplyLoanComponent {
   readonly termLength = signal('');
   readonly paymentFrequency = signal('');
 
-  readonly paymentFrequencies = ['weekly', 'biweekly', 'monthly'] as const;
+  readonly paymentFrequencies = ['biweekly', 'monthly'] as const;
 
   readonly canSubmit = computed(() => {
     const amount = Number(this.amount());

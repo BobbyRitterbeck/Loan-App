@@ -5,7 +5,7 @@ import { StorageService } from './storage.service';
 
 const LOANS_KEY = 'loan-portal-loans';
 
-const PAYMENT_FREQUENCIES = ['weekly', 'biweekly', 'monthly'] as const;
+const PAYMENT_FREQUENCIES = ['biweekly', 'monthly'] as const;
 
 type LoansByUser = Record<string, Loan[]>;
 
