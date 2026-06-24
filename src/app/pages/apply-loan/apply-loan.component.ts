@@ -21,16 +21,17 @@ export class ApplyLoanComponent {
   readonly paymentFrequency = signal('');
 
   readonly paymentFrequencies = ['biweekly', 'monthly'] as const;
+  readonly termLengths = [36, 60] as const;
 
   readonly canSubmit = computed(() => {
     const amount = Number(this.amount());
-    const termLength = Number(this.termLength());
+    const termLength = this.termLength();
     const frequency = this.paymentFrequency();
 
     return (
       amount > 0 &&
-      termLength > 0 &&
-      this.paymentFrequencies.includes(frequency as (typeof this.paymentFrequencies)[number])
+      this.termLengths.some((length) => String(length) === termLength) &&
+      (this.paymentFrequencies as readonly string[]).includes(frequency)
     );
   });
 
@@ -39,8 +40,8 @@ export class ApplyLoanComponent {
     this.amount.set(value);
   }
 
-  onTermLengthInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
+  onTermLengthChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
     this.termLength.set(value);
   }
 

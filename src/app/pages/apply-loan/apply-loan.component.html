@@ -17,13 +17,12 @@
 
       <label class="field">
         <span>Term Length (months)</span>
-        <input
-          type="number"
-          [value]="termLength()"
-          (input)="onTermLengthInput($event)"
-          placeholder="e.g. 12"
-          min="1"
-        />
+        <select [value]="termLength()" (change)="onTermLengthChange($event)">
+          <option value="" disabled>Select term length</option>
+          @for (length of termLengths; track length) {
+            <option [value]="length">{{ length }}</option>
+          }
+        </select>
       </label>
 
       <label class="field">
