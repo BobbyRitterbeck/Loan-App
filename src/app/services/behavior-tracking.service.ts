@@ -1,6 +1,11 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
 
+import { TypingVelocityMetrics } from '../models/typing-velocity.model';
+import {
+  getIsTrackedInputElement,
+  getTrackedFieldId,
+} from './behavior-tracking.utils';
 import { TypingVelocityService } from './typing-velocity.service';
 
 @Injectable({ providedIn: 'root' })
@@ -9,6 +14,7 @@ export class BehaviorTrackingService {
   private readonly typingVelocityService = inject(TypingVelocityService);
   private initialized = false;
 
+  /** Registers global behavior listeners once during application startup. */
   initialize(): void {
     if (this.initialized) {
       return;
@@ -16,19 +22,21 @@ export class BehaviorTrackingService {
 
     this.initialized = true;
 
+    // Capture phase mirrors production behavior service wiring so tracking runs
+    // regardless of component-level event handlers.
     this.document.addEventListener('keydown', this.onKeydown, true);
     this.document.addEventListener('blur', this.onBlur, true);
   }
 
   private readonly onKeydown = (event: Event): void => {
     const inputElement = event.target as HTMLElement;
-    if (!this.getIsRelevantInputElement(inputElement)) {
+    if (!getIsTrackedInputElement(inputElement)) {
       return;
     }
 
     const keyboardEvent = event as KeyboardEvent;
     this.typingVelocityService.trackKeydown(
-      this.getFieldId(inputElement),
+      getTrackedFieldId(inputElement),
       keyboardEvent.timeStamp,
       keyboardEvent.repeat,
     );
@@ -36,36 +44,25 @@ export class BehaviorTrackingService {
 
   private readonly onBlur = (event: Event): void => {
     const inputElement = event.target as HTMLElement;
-    if (!this.getIsRelevantInputElement(inputElement)) {
+    if (!getIsTrackedInputElement(inputElement)) {
       return;
     }
 
-    const metrics = this.typingVelocityService.completeField(
-      this.getFieldId(inputElement),
+    const metrics = this.typingVelocityService.completeSession(
+      getTrackedFieldId(inputElement),
     );
 
     if (metrics) {
-      console.log('Typing velocity metrics', metrics);
+      // Orchestration layer does not compute metrics; it forwards completed output.
+      this.reportTypingVelocity(metrics);
     }
   };
 
-  private getIsRelevantInputElement(
-    element: HTMLElement,
-  ): element is HTMLInputElement {
-    if (element.tagName.toLowerCase() !== 'input') {
-      return false;
-    }
-
-    const inputElement = element as HTMLInputElement;
-    const relevantInputTypes = ['text', 'password', 'tel', 'email', 'date', 'number'];
-    const inputType = inputElement.type?.toLowerCase() || 'text';
-
-    return Boolean(
-      (inputElement.name || inputElement.id) && relevantInputTypes.includes(inputType),
-    );
-  }
-
-  private getFieldId(element: HTMLInputElement): string {
-    return element.name || element.id;
+  /**
+   * Reporting seam for production integration.
+   * Replace this console output with enterprise event reporting in production.
+   */
+  private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
+    console.log('Typing velocity metrics', metrics);
   }
 }
