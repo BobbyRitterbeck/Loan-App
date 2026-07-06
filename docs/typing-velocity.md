@@ -6,7 +6,7 @@ This feature measures basic typing velocity for tracked input fields and produce
 
 The current sandbox reports metrics to the console, but the architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step.
 
-TS-services is where to find all the typing velocity services 
+TS (Typing Speed)-services is where to find all the typing velocity services 
 
 ## File Responsibilities
 
