@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { TypingVelocityMetrics } from '../models/typing-velocity.model';
+import { TypingVelocityMetrics } from '../../models/typing-velocity.model';
 
 interface FieldVelocityState {
   totalKeystrokes: number;

@@ -1,7 +1,7 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
 
-import { TypingVelocityMetrics } from '../models/typing-velocity.model';
+import { TypingVelocityMetrics } from '../../models/typing-velocity.model';
 import {
   getIsTrackedInputElement,
   getTrackedFieldId,
@@ -59,8 +59,8 @@ export class BehaviorTrackingService {
   };
 
   /**
-   * Reporting seam for production integration.
-   * Replace this console output with enterprise event reporting in production.
+   * Reporting seam for Best Egg integration.
+   * Replace this console output with enterprise event reporting when integrated.
    */
   private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
     console.log('Typing velocity metrics', metrics);

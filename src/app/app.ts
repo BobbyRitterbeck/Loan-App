@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-import { BehaviorTrackingService } from './services/behavior-tracking.service';
+import { BehaviorTrackingService } from './services/TS-services/behavior-tracking.service';
 
 @Component({
   selector: 'app-root',
