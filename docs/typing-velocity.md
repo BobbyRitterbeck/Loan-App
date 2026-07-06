@@ -6,13 +6,14 @@ This feature measures basic typing velocity for tracked input fields and produce
 
 The current sandbox reports metrics to the console, but the architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step.
 
+TS-services is where to find all the typing velocity services 
+
 ## File Responsibilities
 
 - `src/app/services/behavior-tracking.service.ts`
-  - Owns global browser event listeners (`keydown`, `blur`) and application-level orchestration.
+  - Owns global browser event listeners (`keydown`, `blur`) and orchestration.
   - Filters relevant input elements.
-  - Forwards typed event data into `TypingVelocityService`.
-  - Receives completed metrics and passes them to a reporting seam.
+  - Receives completed typed event data metrics and passes them to a reporting seam. `TypingVelocityService`.
 - `src/app/services/typing-velocity.service.ts`
   - Performs typing velocity measurement.
   - Keeps field-level measurement state.
@@ -33,7 +34,7 @@ Browser Events
 → tracked-input filtering
 → `TypingVelocityService` measurement updates
 → `TypingVelocityMetrics`
-→ reporting seam (`reportTypingVelocity`, currently `console.log`)
+→ reporting seam (`reportTypingVelocity`, currently to `console.log` which would change when implemented)
 
 ## Session Lifecycle
 
