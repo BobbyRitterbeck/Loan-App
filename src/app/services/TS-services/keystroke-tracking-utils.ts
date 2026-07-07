@@ -1,6 +1,6 @@
-import { TRACKED_INPUT_TYPES } from './behavior-tracking.constants';
+import { KEYSTROKE_TRACKED_INPUT_TYPES } from './keystroke-tracking.constants';
 
-export function getIsTrackedInputElement(
+export function isKeystrokeTrackableInputElement(
   element: HTMLElement,
 ): element is HTMLInputElement {
   if (element.tagName.toLowerCase() !== 'input') {
@@ -11,11 +11,14 @@ export function getIsTrackedInputElement(
   const inputType = inputElement.type?.toLowerCase() || 'text';
 
   return Boolean(
-    (inputElement.name || inputElement.id) && TRACKED_INPUT_TYPES.includes(inputType as (typeof TRACKED_INPUT_TYPES)[number]),
+    (inputElement.name || inputElement.id) &&
+      KEYSTROKE_TRACKED_INPUT_TYPES.includes(
+        inputType as (typeof KEYSTROKE_TRACKED_INPUT_TYPES)[number],
+      ),
   );
 }
 
-export function getTrackedFieldId(element: HTMLInputElement): string {
+export function getKeystrokeTrackedFieldId(element: HTMLInputElement): string {
   // Prefer name because it usually maps directly to form field semantics.
   return element.name || element.id;
 }

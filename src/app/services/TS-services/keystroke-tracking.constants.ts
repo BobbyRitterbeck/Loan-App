@@ -1,4 +1,4 @@
-export const TRACKED_INPUT_TYPES = [
+export const KEYSTROKE_TRACKED_INPUT_TYPES = [
   'text',
   'password',
   'tel',

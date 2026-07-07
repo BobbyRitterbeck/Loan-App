@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-import { BehaviorTrackingService } from './services/TS-services/behavior-tracking.service';
+import { KeystrokeTrackingService } from './services/TS-services/keystroke-tracking.service';
 
 @Component({
   selector: 'app-root',
@@ -10,7 +10,7 @@ import { BehaviorTrackingService } from './services/TS-services/behavior-trackin
   styleUrl: './app.scss',
 })
 export class App {
-  constructor(private readonly behaviorTrackingService: BehaviorTrackingService) {
-    this.behaviorTrackingService.initialize();
+  constructor(private readonly keystrokeTrackingService: KeystrokeTrackingService) {
+    this.keystrokeTrackingService.initialize();
   }
 }
