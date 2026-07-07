@@ -6,35 +6,67 @@ This feature measures basic typing velocity for tracked input fields and produce
 
 The current sandbox reports metrics to the console, but the architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step.
 
-TS (Typing Speed)-services is where to find all the typing velocity services 
+All typing-velocity services live under `src/app/services/TS-services/`.
 
 ## File Responsibilities
 
-- `src/app/services/behavior-tracking.service.ts`
+Files are listed in execution order (startup → runtime).
+
+- `src/app/app.ts`
+  - Initializes `BehaviorTrackingService` once at app startup.
+- `src/app/services/TS-services/behavior-tracking.service.ts`
   - Owns global browser event listeners (`keydown`, `blur`) and orchestration.
   - Filters relevant input elements.
-  - Receives completed typed event data metrics and passes them to a reporting seam. `TypingVelocityService`.
-- `src/app/services/typing-velocity.service.ts`
+  - Receives completed typing metrics and passes them to the reporting seam (`reportTypingVelocity`).
+- `src/app/services/TS-services/behavior-tracking.utils.ts`
+  - Shared helpers for tracked-input detection and field identification.
+- `src/app/services/TS-services/behavior-tracking.constants.ts`
+  - Shared tracked input-type constants.
+- `src/app/services/TS-services/typing-velocity.service.ts`
   - Performs typing velocity measurement.
   - Keeps field-level measurement state.
   - Produces `TypingVelocityMetrics` when a field session completes.
 - `src/app/models/typing-velocity.model.ts`
   - Defines the output contract consumed by reporting (`TypingVelocityMetrics`).
-- `src/app/services/behavior-tracking.constants.ts`
-  - Shared tracked input-type constants.
-- `src/app/services/behavior-tracking.utils.ts`
-  - Shared helpers for tracked-input detection and field identification.
-- `src/app/app.ts`
-  - Initializes `BehaviorTrackingService` once at app startup.
+
+## Why Each File Exists
+
+### `src/app/app.ts`
+
+Something must turn tracking on once when the app loads. Calling `initialize()` from the root component keeps that a single, explicit bootstrap step. Form components and inputs stay unaware of tracking—no per-field wiring required.
+
+### `src/app/services/TS-services/behavior-tracking.service.ts`
+
+Browser events are a global, cross-cutting concern. One service owns `document`-level listeners so listeners are not duplicated on every input or component. It sits between "what happened in the DOM" and "what we measure/report," so measurement and reporting can be swapped without touching event wiring.
+
+Capture-phase registration (`addEventListener(..., true)`) mirrors how a production Behavior Service would run: tracking still fires even if a component stops propagation on its own handlers.
+
+### `src/app/services/TS-services/behavior-tracking.utils.ts`
+
+"Is this input trackable?" and "What field is this?" are pure logic with no state or side effects. Extracting that from the orchestrator keeps the service focused on listeners and delegation, and makes the rules easy to test and reuse if other behavior trackers need the same filtering.
+
+### `src/app/services/TS-services/behavior-tracking.constants.ts`
+
+The list of tracked input types is a policy decision, not an implementation detail. A dedicated constants file means you change what gets tracked in one place without hunting through listener code. It also provides a single typed source (`as const`) that utils can reference safely.
+
+### `src/app/services/TS-services/typing-velocity.service.ts`
+
+Velocity math and per-field session state are separate from DOM events. This service can count keystrokes, ignore key repeat, and compute intervals without knowing about `keydown`, `blur`, or `console.log`. That separation matters for production: the Behavior Service keeps listeners; this service remains the reusable measurement engine.
+
+Session state lives here (not in the orchestrator) so multiple fields can be tracked concurrently via `fieldId`, and each session resets cleanly on blur.
+
+### `src/app/models/typing-velocity.model.ts`
+
+Measurement and reporting need a shared contract. The interface defines the shape of completed metrics so `TypingVelocityService` knows what to return and `BehaviorTrackingService` (and later enterprise reporting) knows what to consume—without coupling those layers through ad-hoc objects that drift apart as the feature grows.
 
 ## Event Flow
 
 Browser Events
 → `BehaviorTrackingService` global listeners
-→ tracked-input filtering
+→ tracked-input filtering (`behavior-tracking.utils` + `behavior-tracking.constants`)
 → `TypingVelocityService` measurement updates
 → `TypingVelocityMetrics`
-→ reporting seam (`reportTypingVelocity`, currently to `console.log` which would change when implemented)
+→ reporting seam (`reportTypingVelocity`, currently `console.log`)
 
 ## Session Lifecycle
 
@@ -45,11 +77,21 @@ Browser Events
 
 ## Why Responsibilities Are Separated
 
+| Concern | Where it lives | Why separated |
+| --- | --- | --- |
+| When to listen | `app.ts` + `behavior-tracking.service.ts` | One startup hook, one listener owner |
+| What to track | `behavior-tracking.constants.ts` + `behavior-tracking.utils.ts` | Policy vs. pure helpers |
+| How to measure | `typing-velocity.service.ts` | Reusable, DOM-free math |
+| What to emit | `typing-velocity.model.ts` | Stable contract between layers |
+| Where to send it | `reportTypingVelocity()` in orchestrator | Sandbox: `console.log`; production: swap only this |
+
 - Browser event ownership and filtering are orchestration concerns.
 - Velocity calculation is a measurement concern.
 - Reporting is an integration concern.
 
 This separation minimizes coupling and makes it easier to replace console reporting with production reporting (for example, `reportTypingVelocity(...)`) without changing measurement logic.
+
+Without this structure you would duplicate "is this a tracked input?" logic, tie velocity math to DOM events, and couple reporting to implicit object shapes—each of which makes production integration harder.
 
 ## Production Integration Path
 
