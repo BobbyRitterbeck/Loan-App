@@ -25,6 +25,7 @@ export class KeystrokeTrackingService {
     // Capture phase mirrors production keystroke-tracking wiring so tracking runs
     // regardless of component-level event handlers.
     this.document.addEventListener('keydown', this.onKeydown, true);
+    this.document.addEventListener('input', this.onInput, true);
     this.document.addEventListener('blur', this.onBlur, true);
   }
 
@@ -39,6 +40,20 @@ export class KeystrokeTrackingService {
       getKeystrokeTrackedFieldId(inputElement),
       keyboardEvent.timeStamp,
       keyboardEvent.repeat,
+    );
+  };
+
+  private readonly onInput = (event: Event): void => {
+    const inputElement = event.target as HTMLElement;
+    if (!isKeystrokeTrackableInputElement(inputElement)) {
+      return;
+    }
+
+    const inputEvent = event as InputEvent;
+    this.typingVelocityService.trackInput(
+      getKeystrokeTrackedFieldId(inputElement),
+      inputEvent.inputType ?? null,
+      inputEvent.isTrusted,
     );
   };
 

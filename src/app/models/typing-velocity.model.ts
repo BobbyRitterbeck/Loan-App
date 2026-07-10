@@ -4,4 +4,9 @@ export interface TypingVelocityMetrics {
   averageIntervalMs: number | null;
   minIntervalMs: number | null;
   maxIntervalMs: number | null;
+  totalInputEvents: number;
+  trustedInputEventCount: number;
+  untrustedInputEventCount: number;
+  inputWithoutKeydownCount: number;
+  inputTypeCounts: Record<string, number>;
 }

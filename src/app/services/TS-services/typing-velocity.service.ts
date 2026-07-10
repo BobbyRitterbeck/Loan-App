@@ -9,6 +9,11 @@ interface FieldVelocityState {
   intervalSumMs: number;
   minIntervalMs: number | null;
   maxIntervalMs: number | null;
+  totalInputEvents: number;
+  trustedInputEventCount: number;
+  untrustedInputEventCount: number;
+  inputWithoutKeydownCount: number;
+  inputTypeCounts: Record<string, number>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -41,6 +46,33 @@ export class TypingVelocityService {
     this.fieldStates.set(fieldId, state);
   }
 
+  /** Records a browser input sample to preserve non-typing interaction signals. */
+  trackInput(fieldId: string, inputType: string | null, isTrusted: boolean): void {
+    if (!fieldId.trim()) {
+      return;
+    }
+
+    const state = this.fieldStates.get(fieldId) ?? this.createFieldState();
+
+    state.totalInputEvents += 1;
+
+    if (isTrusted) {
+      state.trustedInputEventCount += 1;
+    } else {
+      state.untrustedInputEventCount += 1;
+    }
+
+    if (state.totalKeystrokes === 0) {
+      state.inputWithoutKeydownCount += 1;
+    }
+
+    const normalizedInputType = inputType?.trim() || 'unknown';
+    state.inputTypeCounts[normalizedInputType] =
+      (state.inputTypeCounts[normalizedInputType] ?? 0) + 1;
+
+    this.fieldStates.set(fieldId, state);
+  }
+
   /** Completes a field session and returns summary typing velocity metrics. */
   completeSession(fieldId: string): TypingVelocityMetrics | null {
     const state = this.fieldStates.get(fieldId);
@@ -58,6 +90,11 @@ export class TypingVelocityService {
         state.intervalCount > 0 ? state.intervalSumMs / state.intervalCount : null,
       minIntervalMs: state.minIntervalMs,
       maxIntervalMs: state.maxIntervalMs,
+      totalInputEvents: state.totalInputEvents,
+      trustedInputEventCount: state.trustedInputEventCount,
+      untrustedInputEventCount: state.untrustedInputEventCount,
+      inputWithoutKeydownCount: state.inputWithoutKeydownCount,
+      inputTypeCounts: { ...state.inputTypeCounts },
     };
   }
 
@@ -69,6 +106,11 @@ export class TypingVelocityService {
       intervalSumMs: 0,
       minIntervalMs: null,
       maxIntervalMs: null,
+      totalInputEvents: 0,
+      trustedInputEventCount: 0,
+      untrustedInputEventCount: 0,
+      inputWithoutKeydownCount: 0,
+      inputTypeCounts: {},
     };
   }
 }

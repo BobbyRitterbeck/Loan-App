@@ -15,7 +15,7 @@ Files are listed in execution order (startup → runtime).
 - `src/app/app.ts`
   - Initializes `KeystrokeTrackingService` once at app startup.
 - `src/app/services/TS-services/keystroke-tracking.service.ts`
-  - Owns global browser event listeners (`keydown`, `blur`) and orchestration.
+  - Owns global browser event listeners (`keydown`, `input`, `blur`) and orchestration.
   - Filters relevant input elements.
   - Receives completed typing metrics and passes them to the reporting seam (`reportTypingVelocity`).
 - `src/app/services/TS-services/keystroke-tracking-utils.ts`
@@ -53,7 +53,7 @@ The list of tracked input types is a policy decision, not an implementation deta
 
 Velocity math and per-field session state are separate from DOM events. This service can count keystrokes, ignore key repeat, and compute intervals without knowing about `keydown`, `blur`, or `console.log`. That separation matters for production: the keystroke-tracking service keeps listeners; this service remains the reusable measurement engine.
 
-Session state lives here (not in the orchestrator) so multiple fields can be tracked concurrently via `fieldId`, and each session resets cleanly on blur.
+Session state lives here (not in the orchestrator) so multiple fields can be tracked concurrently via `fieldId`, and each session resets cleanly on blur. The same state now also keeps objective input-event signals (`inputType` counts, trusted/untrusted input-event counts, and input events observed before any keydown) so downstream analysis can distinguish browser-origin value changes from plain typing without adding scoring logic in the tracking layer.
 
 ### `src/app/models/typing-velocity.model.ts`
 
@@ -70,7 +70,8 @@ Browser Events
 
 ## Session Lifecycle
 
-- Session begins implicitly on first tracked `keydown` for a field.
+- Session begins implicitly on first tracked `keydown` or `input` for a field.
+- Tracked `input` events update objective non-typing signal counts.
 - Additional `keydown` events update interval summaries.
 - Session ends on tracked input `blur`.
 - On session end, `TypingVelocityService.completeSession(fieldId)` returns summary metrics.
