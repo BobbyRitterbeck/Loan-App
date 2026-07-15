@@ -23,11 +23,26 @@ export class KeystrokeTrackingService {
     this.initialized = true;
 
     // Capture phase mirrors production keystroke-tracking wiring so tracking runs
-    // regardless of component-level event handlers.
+    // regardless of component-level event handlers. Focus/blur do not bubble, so
+    // capture registration is required for them.
+    this.document.addEventListener('focus', this.onFocus, true);
     this.document.addEventListener('keydown', this.onKeydown, true);
     this.document.addEventListener('input', this.onInput, true);
     this.document.addEventListener('blur', this.onBlur, true);
   }
+
+  private readonly onFocus = (event: Event): void => {
+    const inputElement = event.target as HTMLElement;
+    if (!isKeystrokeTrackableInputElement(inputElement)) {
+      return;
+    }
+
+    this.typingVelocityService.trackFocus(
+      getKeystrokeTrackedFieldId(inputElement),
+      event.timeStamp,
+      inputElement.type,
+    );
+  };
 
   private readonly onKeydown = (event: Event): void => {
     const inputElement = event.target as HTMLElement;
@@ -54,6 +69,8 @@ export class KeystrokeTrackingService {
       getKeystrokeTrackedFieldId(inputElement),
       inputEvent.inputType ?? null,
       inputEvent.isTrusted,
+      inputEvent.timeStamp,
+      inputElement.type,
     );
   };
 
