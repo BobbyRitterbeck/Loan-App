@@ -1,11 +1,14 @@
+import { JsonPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
+import { KeystrokeTrackingService } from '../../services/TS-services/keystroke-tracking.service';
 import { SessionService } from '../../services/session.service';
 import { UserService } from '../../services/user.service';
 
 @Component({
   selector: 'app-login',
+  imports: [JsonPipe],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -13,8 +16,11 @@ export class LoginComponent {
   private readonly userService = inject(UserService);
   private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
+  private readonly keystrokeTrackingService = inject(KeystrokeTrackingService);
 
   readonly username = signal('');
+  readonly typingVelocitySessions = this.keystrokeTrackingService.sessionMetrics;
+  readonly sessionCount = computed(() => this.typingVelocitySessions().length);
 
   readonly trimmedUsername = computed(() => this.username().trim());
 

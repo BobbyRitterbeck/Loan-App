@@ -1,31 +1,60 @@
 <main class="page">
-  <section class="login-card">
-  <h1>Loan Application Portal</h1>
-  <p class="subtitle">Enter your username to continue</p>
+  <div class="login-layout">
+    <section class="login-card">
+      <h1>Loan Application Portal</h1>
+      <p class="subtitle">Enter your username to continue</p>
 
-  <label class="field">
-    <span>Username</span>
-    <input
-      type="text"
-      id="username"
-      name="username"
-      [value]="username()"
-      (input)="onUsernameInput($event)"
-      placeholder="e.g. jane.doe"
-      autocomplete="username"
-    />
-  </label>
+      <label class="field">
+        <span>Username</span>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          [value]="username()"
+          (input)="onUsernameInput($event)"
+          placeholder="e.g. jane.doe"
+          autocomplete="username"
+        />
+      </label>
 
-  <div class="actions">
-    @if (userExists()) {
-      <button type="button" class="btn btn-primary" (click)="login()">Login</button>
-    }
+      <div class="actions">
+        @if (userExists()) {
+          <button type="button" class="btn btn-primary" (click)="login()">Login</button>
+        }
 
-    @if (canCreateAccount()) {
-      <button type="button" class="btn btn-secondary" (click)="createAccount()">
-        Create Account
-      </button>
-    }
+        @if (canCreateAccount()) {
+          <button type="button" class="btn btn-secondary" (click)="createAccount()">
+            Create Account
+          </button>
+        }
+      </div>
+    </section>
+
+    <details class="metrics-card" aria-live="polite">
+      <summary>
+        Typing velocity metrics
+        <span class="metrics-count">{{ sessionCount() }}</span>
+      </summary>
+
+      @if (sessionCount() === 0) {
+        <p class="metrics-empty">Blur the username field to record a session.</p>
+      } @else {
+        <ul class="metrics-list">
+          @for (metrics of typingVelocitySessions(); track $index) {
+            <li>
+              <details class="metrics-session">
+                <summary>
+                  #{{ sessionCount() - $index }}
+                  · {{ metrics.fieldId }}
+                  · {{ metrics.totalKeystrokes }} keystrokes
+                  · {{ metrics.dominantInputType ?? 'unknown' }}
+                </summary>
+                <pre>{{ metrics | json }}</pre>
+              </details>
+            </li>
+          }
+        </ul>
+      }
+    </details>
   </div>
-  </section>
 </main>

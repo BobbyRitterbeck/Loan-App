@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 
 import { TypingVelocityMetrics } from '../../models/typing-velocity.model';
 import {
@@ -13,6 +13,9 @@ export class KeystrokeTrackingService {
   private readonly document = inject(DOCUMENT);
   private readonly typingVelocityService = inject(TypingVelocityService);
   private initialized = false;
+
+  /** Completed session metrics history for sandbox display; replace with enterprise reporting later. */
+  readonly sessionMetrics = signal<TypingVelocityMetrics[]>([]);
 
   /** Registers global keystroke-tracking listeners once during application startup. */
   initialize(): void {
@@ -92,9 +95,9 @@ export class KeystrokeTrackingService {
 
   /**
    * Reporting seam for production keystroke-tracking integration.
-   * Replace this console output with enterprise event reporting when integrated.
+   * Sandbox: append to sessionMetrics for UI display; production: swap for enterprise reporting.
    */
   private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
-    console.log('Typing velocity metrics', metrics);
+    this.sessionMetrics.update((sessions) => [metrics, ...sessions]);
   }
 }
