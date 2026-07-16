@@ -74,6 +74,7 @@
       </div>
     </section>
 
+    <!-- POC-only: remove this metrics panel (and .metrics-* styles) when switching to enterprise reporting. -->
     <details class="metrics-card" aria-live="polite">
       <summary>
         Typing velocity metrics
@@ -81,7 +82,7 @@
       </summary>
 
       @if (sessionCount() === 0) {
-        <p class="metrics-empty">Blur the username field to record a session.</p>
+        <p class="metrics-empty">Blur a tracked field to record a session.</p>
       } @else {
         <ul class="metrics-list">
           @for (metrics of typingVelocitySessions(); track $index) {

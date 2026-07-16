@@ -14,7 +14,10 @@ export class KeystrokeTrackingService {
   private readonly typingVelocityService = inject(TypingVelocityService);
   private initialized = false;
 
-  /** Completed session metrics history for sandbox display; replace with enterprise reporting later. */
+  /**
+   * POC-only: in-memory session history for the login metrics panel.
+   * Remove this signal (and its import of `signal` if unused) when switching to enterprise reporting.
+   */
   readonly sessionMetrics = signal<TypingVelocityMetrics[]>([]);
 
   /** Registers global keystroke-tracking listeners once during application startup. */
@@ -95,9 +98,11 @@ export class KeystrokeTrackingService {
 
   /**
    * Reporting seam for production keystroke-tracking integration.
-   * Sandbox: append to sessionMetrics for UI display; production: swap for enterprise reporting.
+   * Keep this method; replace its body with enterprise event reporting.
+   * POC-only body below: appends to sessionMetrics for the login metrics panel — remove that line at cutover.
    */
   private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
+    // POC-only: remove when switching to enterprise reporting.
     this.sessionMetrics.update((sessions) => [metrics, ...sessions]);
   }
 }

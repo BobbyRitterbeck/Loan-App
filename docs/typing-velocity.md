@@ -4,7 +4,7 @@
 
 This feature measures basic typing velocity for tracked input fields and produces summary metrics that can later be reported by a production keystroke-tracking service.
 
-The current sandbox reports metrics to the console, but the architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step.
+The current sandbox (POC) displays completed sessions in a collapsible panel on the login page. The architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step and delete the POC UI bits.
 
 All typing-velocity services live under `src/app/services/TS-services/`.
 
@@ -18,6 +18,9 @@ Files are listed in execution order (startup → runtime).
   - Owns global browser event listeners (`focus`, `keydown`, `input`, `blur`) and orchestration.
   - Filters relevant input elements.
   - Receives completed typing metrics and passes them to the reporting seam (`reportTypingVelocity`).
+  - POC-only: owns `sessionMetrics` for the login metrics panel (remove at enterprise cutover).
+- `src/app/pages/login/login.component.*`
+  - POC-only: renders the metrics panel from `sessionMetrics` (remove the panel, inject, and `.metrics-*` styles at cutover).
 - `src/app/services/TS-services/keystroke-tracking-utils.ts`
   - Shared helpers for tracked-input detection and field identification.
 - `src/app/services/TS-services/keystroke-tracking.constants.ts`
@@ -66,7 +69,7 @@ Browser Events
 → tracked-input filtering (`keystroke-tracking-utils` + `keystroke-tracking.constants`)
 → `TypingVelocityService` measurement updates
 → `TypingVelocityMetrics`
-→ reporting seam (`reportTypingVelocity`, currently `console.log`)
+→ reporting seam (`reportTypingVelocity`; POC body appends to `sessionMetrics`)
 
 ## Session Lifecycle
 
@@ -86,22 +89,55 @@ Browser Events
 | What to track | `keystroke-tracking.constants.ts` + `keystroke-tracking-utils.ts` | Policy vs. pure helpers |
 | How to measure | `typing-velocity.service.ts` | Reusable, DOM-free math |
 | What to emit | `typing-velocity.model.ts` | Stable contract between layers |
-| Where to send it | `reportTypingVelocity()` in orchestrator | Sandbox: `console.log`; production: swap only this |
+| Where to send it | `reportTypingVelocity()` in orchestrator | POC: `sessionMetrics` UI; production: swap only this |
 
 - Browser event ownership and filtering are orchestration concerns.
 - Velocity calculation is a measurement concern.
 - Reporting is an integration concern.
 
-This separation minimizes coupling and makes it easier to replace console reporting with production reporting (for example, `reportTypingVelocity(...)`) without changing measurement logic.
+This separation minimizes coupling and makes it easier to replace the POC reporting body with production reporting (for example, `reportTypingVelocity(...)`) without changing measurement logic.
 
 Without this structure you would duplicate "is this a tracked input?" logic, tie velocity math to DOM events, and couple reporting to implicit object shapes—each of which makes production integration harder.
 
 ## Production Integration Path
 
-To integrate into production keystroke-tracking service:
+To integrate this feature into a real application:
 
-1. Keep listener registration and filtering in the keystroke-tracking service.
-2. Reuse `TypingVelocityService` for measurement.
-3. Replace `reportTypingVelocity` console reporting with enterprise event reporting.
+1. Keep listener registration and filtering in `KeystrokeTrackingService`.
+2. Reuse `TypingVelocityService` for measurement and `TypingVelocityMetrics` as the payload contract.
+3. Follow **Replace and Remove Checklist** below for the POC reporting/UI cutover.
 
 No metric recalculation logic needs to move into the keystroke-tracking service.
+
+## Replace and Remove Checklist
+
+Line numbers below match the sandbox as of this writing. Prefer searching for `POC-only` if files have drifted.
+
+### Replace (keep the method; change only the body)
+
+| File | Lines | Action |
+| --- | --- | --- |
+| `src/app/services/TS-services/keystroke-tracking.service.ts` | `103–105` (`reportTypingVelocity`) | Keep the method. Replace the body so it publishes `metrics` to the enterprise event/reporting API instead of appending to `sessionMetrics`. |
+
+Current POC body to replace:
+
+```ts
+private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
+  this.sessionMetrics.update((sessions) => [metrics, ...sessions]);
+}
+```
+
+### Remove (POC-only; delete entirely)
+
+| File | Lines | What to delete |
+| --- | --- | --- |
+| `src/app/services/TS-services/keystroke-tracking.service.ts` | `17–21` | `sessionMetrics` signal and its POC comment. Also drop `signal` from the `@angular/core` import if it becomes unused. |
+| `src/app/pages/login/login.component.ts` | `1` | `JsonPipe` import. |
+| `src/app/pages/login/login.component.ts` | `5–6` | `KeystrokeTrackingService` import and its POC comment. |
+| `src/app/pages/login/login.component.ts` | `15` | `imports: [JsonPipe]` (or remove `JsonPipe` from `imports` if other imports remain). |
+| `src/app/pages/login/login.component.ts` | `23–24` | `keystrokeTrackingService` inject. |
+| `src/app/pages/login/login.component.ts` | `29–31` | `typingVelocitySessions` and `sessionCount`. |
+| `src/app/pages/login/login.component.html` | `77–103` | Metrics panel (`details.metrics-card` block). |
+| `src/app/pages/login/login.component.scss` | `64–149` | All `.metrics-*` styles. |
+
+After those edits, `KeystrokeTrackingService` should again be orchestration-only (listeners → measurement → `reportTypingVelocity`), and the login page should have no dependency on keystroke tracking.
