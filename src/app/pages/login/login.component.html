@@ -17,13 +17,57 @@
         />
       </label>
 
+      <label class="field">
+        <span>Email</span>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          [value]="email()"
+          (input)="onEmailInput($event)"
+          placeholder="e.g. jane.doe@example.com"
+          autocomplete="email"
+        />
+        @if (trimmedEmail().length > 0 && !emailValid()) {
+          <span class="field-error">Enter a valid email address.</span>
+        }
+      </label>
+
+      <label class="field">
+        <span>Password</span>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          [value]="password()"
+          (input)="onPasswordInput($event)"
+          placeholder="At least 8 characters"
+          autocomplete="current-password"
+        />
+        @if (password().length > 0 && !passwordValid()) {
+          <span class="field-error">Password must be at least 8 characters.</span>
+        }
+      </label>
+
       <div class="actions">
         @if (userExists()) {
-          <button type="button" class="btn btn-primary" (click)="login()">Login</button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="!canLogin()"
+            (click)="login()"
+          >
+            Login
+          </button>
         }
 
-        @if (canCreateAccount()) {
-          <button type="button" class="btn btn-secondary" (click)="createAccount()">
+        @if (isNewUsername()) {
+          <button
+            type="button"
+            class="btn btn-secondary"
+            [disabled]="!canCreateAccount()"
+            (click)="createAccount()"
+          >
             Create Account
           </button>
         }
