@@ -109,7 +109,10 @@ export class TypingVelocityService {
     this.fieldStates.set(fieldId, state);
   }
 
-  /** Completes a field session and returns summary typing velocity metrics. */
+  /**
+   * Completes a field session and returns summary typing velocity metrics.
+   * Returns null when there is no session or when the session recorded no activity.
+   */
   completeSession(fieldId: string): TypingVelocityMetrics | null {
     const state = this.fieldStates.get(fieldId);
     if (!state) {
@@ -118,6 +121,11 @@ export class TypingVelocityService {
 
     // Session is single-use: once reported, a new keystroke starts a fresh session.
     this.fieldStates.delete(fieldId);
+
+    // Focus-only sessions carry no behavioral signal; skip reporting them.
+    if (this.isEmptySession(state)) {
+      return null;
+    }
 
     // Focus should precede input; negative spans imply clock anomalies and are reported as null.
     const msFromFocusToFirstInput = this.nonNegativeSpan(
@@ -138,6 +146,16 @@ export class TypingVelocityService {
       hasUntrustedInput: state.hasUntrustedInput,
       inputWithoutKeydown: state.inputWithoutKeydown,
     };
+  }
+
+  /** True when the field was focused but never typed in or changed (no keydown, no input event). */
+  private isEmptySession(state: FieldVelocityState): boolean {
+    return (
+      state.totalKeystrokes === 0 &&
+      state.firstInputTimeStamp === null &&
+      state.hasUntrustedInput === false &&
+      state.inputWithoutKeydown === false
+    );
   }
 
   /** Returns end - start when both are present and non-negative, otherwise null. */

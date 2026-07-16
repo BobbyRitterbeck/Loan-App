@@ -76,6 +76,7 @@ Browser Events
 - Additional `keydown` events update interval summaries.
 - Session ends on tracked input `blur`.
 - On session end, `TypingVelocityService.completeSession(fieldId)` returns summary metrics.
+- Sessions with no recorded activity (focused but never typed in or changed) are treated as empty and are not reported.
 
 ## Why Responsibilities Are Separated
 
