@@ -14,14 +14,16 @@ Files are listed in execution order (startup → runtime).
 
 - `src/app/app.ts`
   - Initializes `KeystrokeTrackingService` once at app startup.
+  - Provides `onHostNavigation()` — the example host seam showing where an app drives the page-session lifecycle on route transitions (not wired to any router).
 - `src/app/services/TS-services/keystroke-tracking.service.ts`
   - Owns global browser event listeners (`focus`, `keydown`, `input`, `blur`) and orchestration.
   - Filters relevant input elements.
   - Collects each completed field's metrics into the active page session (`PageSessionService.addFieldMetrics`); it does not report per field.
-  - Exposes the public page-session lifecycle (`beginPageSession`, `endPageSession`) and forwards the completed page session to the single reporting seam (`reportPageSession`).
-  - POC-only: registers a `pagehide` listener as the default `endPageSession` trigger (remove at enterprise cutover; drive the lifecycle from the host instead).
+  - Exposes the public page-session lifecycle (`startPageSession(pageId?)`, `endPageSession(reason?)`), enforces no-overlap on start and idempotency on end, and forwards the completed page session to the single reporting seam (`reportPageSession`).
+  - Registers a `pagehide` listener as a fallback end trigger for document teardown (safety net; the host normally drives the lifecycle explicitly).
 - `src/app/services/TS-services/page-session.service.ts`
-  - Owns the page-session lifecycle (`begin`, `end`) and aggregates completed `TypingVelocityMetrics` into a `PageSessionMetrics` batch.
+  - Owns the page-session lifecycle (`start`, `end`, `isActive`) and aggregates completed `TypingVelocityMetrics` into a `PageSessionMetrics` batch.
+  - Stores host-provided `pageId`/`reason` as session metadata (reserved for future reporting; not emitted yet).
   - Performs no measurement and no DOM work.
 - `src/app/services/TS-services/keystroke-tracking-utils.ts`
   - Shared helpers for tracked-input detection and field identification.
@@ -41,6 +43,8 @@ Files are listed in execution order (startup → runtime).
 ### `src/app/app.ts`
 
 Something must turn tracking on once when the app loads. Calling `initialize()` from the root component keeps that a single, explicit bootstrap step. Form components and inputs stay unaware of tracking—no per-field wiring required.
+
+`App` also carries `onHostNavigation()`, an example-only seam showing where a host drives the page-session lifecycle on navigation. It is deliberately not tied to a router: a real app calls it from Angular Router `NavigationEnd`, a React Router effect, or any other navigation signal. The tracking module itself never imports a router, so this seam is the only per-framework change.
 
 ### `src/app/services/TS-services/keystroke-tracking.service.ts`
 
@@ -68,7 +72,7 @@ This service is deliberately **field-scoped**. Page-level session state lives in
 
 A page session is a different granularity than a field session: it spans many fields and has an explicit begin/end lifecycle driven by the host, whereas a field session is implicit (focus → blur). Keeping page-session state and aggregation out of `TypingVelocityService` preserves that service's single responsibility (field math) and out of `KeystrokeTrackingService` keeps session state off the DOM/orchestration layer, consistent with the rest of this architecture.
 
-The service is intentionally minimal for this phase: it only collects the `TypingVelocityMetrics` handed to it between `begin()` and `end()` and returns them as a batch. It computes no page-level metrics, timestamps, or identifiers yet; `PageSessionMetrics` is the extension point where a later phase can add those without changing the reporting seam.
+The service is intentionally minimal for this phase: it collects the `TypingVelocityMetrics` handed to it between `start()` and `end()` and returns them as a batch. It also stores the host-provided `pageId`/`reason` as session metadata so the lifecycle API is enterprise-ready, but it computes no page-level metrics and does not yet emit that metadata. `PageSessionMetrics` is the extension point where a later phase can surface it without changing the reporting seam.
 
 ### `src/app/models/typing-velocity.model.ts`
 
@@ -106,15 +110,32 @@ On page session end (single report):
 
 The keystroke module never decides what a "page" is; it responds to lifecycle calls from the host application. `KeystrokeTrackingService` exposes two public methods:
 
-- `beginPageSession()` — starts a page session, clearing any prior page-session state. The host calls this on page/route enter.
-- `endPageSession()` — flushes any still-open field sessions, aggregates all completed `TypingVelocityMetrics` collected during the session into a `PageSessionMetrics`, and forwards it to `reportPageSession`. The host calls this on page/route leave.
+- `startPageSession(pageId?: string)` — starts a page session. The host calls this on page/route enter. `pageId` is stored as session metadata.
+- `endPageSession(reason?: string)` — flushes any still-open field sessions, aggregates all completed `TypingVelocityMetrics` collected during the session into a `PageSessionMetrics`, and forwards it to `reportPageSession`. The host calls this on page/route leave. `reason` is stored as session metadata.
 
-Behavior notes:
+The host owns the boundaries. A SPA route transition ends the current session and starts the next — without any dependency on browser unload events:
 
+```ts
+// Example host seam (see App.onHostNavigation); wire to your router.
+keystrokeTracking.endPageSession('navigation');
+keystrokeTracking.startPageSession(nextPageId);
+```
+
+Lifecycle rules:
+
+- **No overlap.** Calling `startPageSession()` while a session is already active is an invalid lifecycle call: the current session is left untouched, the request is ignored, and a development `console.warn` is emitted. The host must call `endPageSession()` before starting a new session.
+- **Idempotent end.** `endPageSession()` with no active session is a no-op. This is what lets `pagehide` act as a safe fallback: if the host already ended the session, the fallback does nothing rather than reporting twice.
+- **`pagehide` is a fallback only**, not the primary trigger. It flushes and reports the active session if the document is torn down (tab close, refresh, external navigation) before the host calls `endPageSession()`. It is not tied to in-app navigation.
+
+Metadata and reporting:
+
+- `pageId` and `reason` are accepted and stored as session metadata to keep the API enterprise-ready, but they are **not** included in `PageSessionMetrics` or the console report this phase. Metric collection and reporting behavior are unchanged.
 - There is a single reporting path: `reportPageSession`. Completed field metrics are collected on `blur` but not reported individually; they are emitted together in the page session's `PageSessionMetrics`.
-- Because `endPageSession()` flushes and clears all open field sessions, a subsequent `beginPageSession()` starts cleanly with no carryover.
 - A page session with no field activity still emits a `PageSessionMetrics` with an empty `fields` array; nothing is silently dropped.
-- Angular Router is intentionally kept out of the module. The sandbox uses a `pagehide` listener as the default `endPageSession` trigger; production applications remove that listener and drive `beginPageSession`/`endPageSession` from their own navigation system.
+
+Framework independence:
+
+- The module never imports Angular Router, React Router, or any routing library. The only integration point is the pair of public lifecycle methods, demonstrated by the framework-agnostic `App.onHostNavigation()` example seam.
 
 ## Why Responsibilities Are Separated
 
@@ -157,12 +178,13 @@ Prefer searching for `POC-only` / `TEMP` if files have drifted.
 
 Replace only the method body; keep the signature so measurement and lifecycle code stay untouched.
 
-The public `beginPageSession()` / `endPageSession()` methods are the production integration surface for the page-session lifecycle: keep them and call them from the host's navigation system.
+The public `startPageSession(pageId?)` / `endPageSession(reason?)` methods are the production integration surface for the page-session lifecycle: keep them and call them from the host's navigation system (see `App.onHostNavigation()` for the example seam).
 
-### Remove (POC-only; delete entirely)
+### Keep (not POC scaffolding)
 
-| File | Location | What to delete |
+| File | Location | Why it stays |
 | --- | --- | --- |
-| `src/app/services/TS-services/keystroke-tracking.service.ts` | `pagehide` wiring | The POC-only `pagehide` listener registration in `initialize()` and the `onPageHide` handler. Drive `endPageSession()` from the host's navigation system instead. |
+| `src/app/services/TS-services/keystroke-tracking.service.ts` | `pagehide` fallback | The `pagehide` listener and `onPageHide` handler are a permanent safety net that flushes the active session on document teardown. Because `endPageSession()` is idempotent, this never double-reports. Keep it in production. |
+| `src/app/app.ts` | `onHostNavigation()` | Example seam; replace its call site with your router's navigation event, but keep the end-then-start pattern. |
 
-The login page has no dependency on keystroke tracking. After the `pagehide` removal, `KeystrokeTrackingService` is orchestration-only (listeners + lifecycle → measurement/aggregation → `reportPageSession`).
+The login page has no dependency on keystroke tracking. `KeystrokeTrackingService` is orchestration-only (listeners + lifecycle → measurement/aggregation → `reportPageSession`).

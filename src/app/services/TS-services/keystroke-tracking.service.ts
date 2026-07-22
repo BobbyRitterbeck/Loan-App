@@ -32,37 +32,61 @@ export class KeystrokeTrackingService {
     this.document.addEventListener('blur', this.onBlur, true);
 
     // The module does not decide what a "page" is; the host drives the lifecycle.
-    this.beginPageSession();
+    // Start the first session; the host takes over via start/endPageSession.
+    this.startPageSession();
 
-    // POC-only default end trigger. Production removes this line and calls
-    // endPageSession() from its own navigation system (e.g. router events).
+    // Fallback only: flush if the document is torn down before the host calls
+    // endPageSession(). end is idempotent, so an explicit end will not be
+    // duplicated by this listener.
     this.document.defaultView?.addEventListener('pagehide', this.onPageHide);
   }
 
-  /** Starts a page session. Hosts call this on page/route enter. */
-  beginPageSession(): void {
-    this.pageSessionService.begin();
+  /**
+   * Starts a page session with optional host-provided metadata.
+   * Hosts call this on page/route enter, after ending any prior session.
+   *
+   * Starting while a session is already active is an invalid lifecycle call:
+   * the current session is left untouched and the request is ignored. The host
+   * is responsible for calling endPageSession() first.
+   */
+  startPageSession(pageId?: string): void {
+    if (this.pageSessionService.isActive()) {
+      console.warn(
+        'startPageSession() called while a page session is active; ignoring. ' +
+          'Call endPageSession() before starting a new session.',
+      );
+      return;
+    }
+
+    this.pageSessionService.start(pageId);
   }
 
   /**
    * Ends the active page session, flushing any still-open field sessions, and
    * reports the aggregated result. Hosts call this on page/route leave.
+   *
+   * Idempotent: a call with no active session is a no-op, so the `pagehide`
+   * fallback cannot produce a duplicate report.
    */
-  endPageSession(): void {
+  endPageSession(reason?: string): void {
+    if (!this.pageSessionService.isActive()) {
+      return;
+    }
+
     // Flush fields left open at page end so their metrics are not lost.
     for (const metrics of this.typingVelocityService.completeAllSessions()) {
       this.pageSessionService.addFieldMetrics(metrics);
     }
 
-    const pageMetrics = this.pageSessionService.end();
+    const pageMetrics = this.pageSessionService.end(reason);
     if (pageMetrics) {
       this.reportPageSession(pageMetrics);
     }
   }
 
-  // POC-only default end trigger; see initialize().
+  // Fallback end trigger for document teardown; see initialize().
   private readonly onPageHide = (): void => {
-    this.endPageSession();
+    this.endPageSession('pagehide');
   };
 
   private readonly onFocus = (event: Event): void => {

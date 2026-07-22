@@ -15,10 +15,23 @@ export class PageSessionService {
   private active = false;
   private completedFields: TypingVelocityMetrics[] = [];
 
-  /** Starts a new page session, discarding any state from a prior session. */
-  begin(): void {
+  // Session metadata accepted from the host to keep the API enterprise-ready.
+  // Stored but intentionally NOT included in PageSessionMetrics or reporting yet,
+  // so metric collection and reporting behavior stay unchanged this phase.
+  private pageId: string | null = null;
+  private endReason: string | null = null;
+
+  /** Whether a page session is currently open. */
+  isActive(): boolean {
+    return this.active;
+  }
+
+  /** Starts a new page session, storing optional host-provided metadata. */
+  start(pageId?: string): void {
     this.active = true;
     this.completedFields = [];
+    this.pageId = pageId ?? null;
+    this.endReason = null;
   }
 
   /** Collects a completed field's metrics into the active page session. */
@@ -33,11 +46,16 @@ export class PageSessionService {
   /**
    * Ends the active page session and returns its aggregated field metrics.
    * Returns null when no session is active so callers can stay idempotent.
+   *
+   * `reason` is stored as session metadata only; it does not affect the
+   * reported PageSessionMetrics.
    */
-  end(): PageSessionMetrics | null {
+  end(reason?: string): PageSessionMetrics | null {
     if (!this.active) {
       return null;
     }
+
+    this.endReason = reason ?? null;
 
     const metrics: PageSessionMetrics = { fields: this.completedFields };
 
