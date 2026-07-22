@@ -1,8 +1,7 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 
 import { PageSessionMetrics } from '../../models/page-session.model';
-import { TypingVelocityMetrics } from '../../models/typing-velocity.model';
 import {
   getKeystrokeTrackedFieldId,
   isKeystrokeTrackableInputElement,
@@ -16,12 +15,6 @@ export class KeystrokeTrackingService {
   private readonly typingVelocityService = inject(TypingVelocityService);
   private readonly pageSessionService = inject(PageSessionService);
   private initialized = false;
-
-  /**
-   * POC-only: in-memory session history for the login metrics panel.
-   * Remove this signal when switching to enterprise reporting.
-   */
-  readonly sessionMetrics = signal<TypingVelocityMetrics[]>([]);
 
   /** Registers global keystroke-tracking listeners once during application startup. */
   initialize(): void {
@@ -58,7 +51,6 @@ export class KeystrokeTrackingService {
   endPageSession(): void {
     // Flush fields left open at page end so their metrics are not lost.
     for (const metrics of this.typingVelocityService.completeAllSessions()) {
-      this.reportTypingVelocity(metrics);
       this.pageSessionService.addFieldMetrics(metrics);
     }
 
@@ -127,22 +119,13 @@ export class KeystrokeTrackingService {
     );
 
     if (metrics) {
-      // Orchestration layer does not compute metrics; it forwards completed output.
-      this.reportTypingVelocity(metrics);
+      // Completed field metrics are collected into the page session, not reported here.
       this.pageSessionService.addFieldMetrics(metrics);
     }
   };
 
   /**
-   * Reporting seam for production keystroke-tracking integration.
-   * TEMP: console logging instead of UI reporting; revert to sessionMetrics.update(...) to re-enable UI.
-   */
-  private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
-    console.log('Typing velocity metrics', metrics);
-  }
-
-  /**
-   * Reporting seam for a completed page session's aggregated field metrics.
+   * Single reporting seam: emits the aggregated field metrics for a page session.
    * TEMP: console logging; production swaps this body for enterprise reporting.
    */
   private reportPageSession(metrics: PageSessionMetrics): void {

@@ -73,33 +73,5 @@
         }
       </div>
     </section>
-
-    <!-- POC-only: remove this metrics panel (and .metrics-* styles) when switching to enterprise reporting. -->
-    <details class="metrics-card" aria-live="polite">
-      <summary>
-        Typing velocity metrics
-        <span class="metrics-count">{{ sessionCount() }}</span>
-      </summary>
-
-      @if (sessionCount() === 0) {
-        <p class="metrics-empty">Blur a tracked field to record a session.</p>
-      } @else {
-        <ul class="metrics-list">
-          @for (metrics of typingVelocitySessions(); track $index) {
-            <li>
-              <details class="metrics-session">
-                <summary>
-                  #{{ sessionCount() - $index }}
-                  · {{ metrics.fieldId }}
-                  · {{ metrics.totalKeystrokes }} keystrokes
-                  · {{ metrics.dominantInputType ?? 'unknown' }}
-                </summary>
-                <pre>{{ metrics | json }}</pre>
-              </details>
-            </li>
-          }
-        </ul>
-      }
-    </details>
   </div>
 </main>

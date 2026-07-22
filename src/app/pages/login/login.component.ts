@@ -1,9 +1,6 @@
-import { JsonPipe } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
-// POC-only: remove KeystrokeTrackingService + JsonPipe when dropping the metrics panel.
-import { KeystrokeTrackingService } from '../../services/TS-services/keystroke-tracking.service';
 import { SessionService } from '../../services/session.service';
 import { UserService } from '../../services/user.service';
 
@@ -12,7 +9,7 @@ const MIN_PASSWORD_LENGTH = 8;
 
 @Component({
   selector: 'app-login',
-  imports: [JsonPipe], // POC-only: JsonPipe is only used by the metrics panel.
+  imports: [],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })
@@ -20,15 +17,10 @@ export class LoginComponent {
   private readonly userService = inject(UserService);
   private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
-  // POC-only: remove this inject and the two fields below when dropping the metrics panel.
-  private readonly keystrokeTrackingService = inject(KeystrokeTrackingService);
 
   readonly username = signal('');
   readonly email = signal('');
   readonly password = signal('');
-  // POC-only: sandbox metrics display for the keystroke-tracking PoC.
-  readonly typingVelocitySessions = this.keystrokeTrackingService.sessionMetrics;
-  readonly sessionCount = computed(() => this.typingVelocitySessions().length);
 
   readonly trimmedUsername = computed(() => this.username().trim());
   readonly trimmedEmail = computed(() => this.email().trim());

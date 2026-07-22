@@ -4,7 +4,7 @@
 
 This feature measures basic typing velocity for tracked input fields and produces summary metrics that can later be reported by a production keystroke-tracking service.
 
-The current sandbox (POC) displays completed sessions in a collapsible panel on the login page. The architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step and delete the POC UI bits.
+Completed field metrics are collected into a page session and emitted as a single `PageSessionMetrics` report when the page session ends. The architecture intentionally separates event orchestration, measurement, and reporting so production integration can replace only the reporting step.
 
 All typing-velocity services live under `src/app/services/TS-services/`.
 
@@ -17,15 +17,12 @@ Files are listed in execution order (startup → runtime).
 - `src/app/services/TS-services/keystroke-tracking.service.ts`
   - Owns global browser event listeners (`focus`, `keydown`, `input`, `blur`) and orchestration.
   - Filters relevant input elements.
-  - Receives completed typing metrics and passes them to the reporting seam (`reportTypingVelocity`).
-  - Exposes the public page-session lifecycle (`beginPageSession`, `endPageSession`) and forwards completed page sessions to the reporting seam (`reportPageSession`).
-  - POC-only: owns `sessionMetrics` for the login metrics panel (remove at enterprise cutover).
+  - Collects each completed field's metrics into the active page session (`PageSessionService.addFieldMetrics`); it does not report per field.
+  - Exposes the public page-session lifecycle (`beginPageSession`, `endPageSession`) and forwards the completed page session to the single reporting seam (`reportPageSession`).
   - POC-only: registers a `pagehide` listener as the default `endPageSession` trigger (remove at enterprise cutover; drive the lifecycle from the host instead).
 - `src/app/services/TS-services/page-session.service.ts`
   - Owns the page-session lifecycle (`begin`, `end`) and aggregates completed `TypingVelocityMetrics` into a `PageSessionMetrics` batch.
   - Performs no measurement and no DOM work.
-- `src/app/pages/login/login.component.*`
-  - POC-only: renders the metrics panel from `sessionMetrics` (remove the panel, inject, and `.metrics-*` styles at cutover).
 - `src/app/services/TS-services/keystroke-tracking-utils.ts`
   - Shared helpers for tracked-input detection and field identification.
 - `src/app/services/TS-services/keystroke-tracking.constants.ts`
@@ -79,20 +76,21 @@ Measurement and reporting need a shared contract. The interface defines the shap
 
 ## Event Flow
 
+During the page session (collect only, no reporting):
+
 Browser Events
 → `KeystrokeTrackingService` global listeners
 → tracked-input filtering (`keystroke-tracking-utils` + `keystroke-tracking.constants`)
 → `TypingVelocityService` measurement updates
-→ `TypingVelocityMetrics`
-→ field reporting seam (`reportTypingVelocity`; POC body appends to `sessionMetrics`)
+→ on `blur`, `TypingVelocityService.completeSession(fieldId)` → `TypingVelocityMetrics`
 → collected into the active page session (`PageSessionService.addFieldMetrics`)
 
-On page session end:
+On page session end (single report):
 
 `KeystrokeTrackingService.endPageSession()`
-→ flush open fields (`TypingVelocityService.completeAllSessions`)
+→ flush open fields (`TypingVelocityService.completeAllSessions`) → collected via `addFieldMetrics`
 → `PageSessionService.end()` → `PageSessionMetrics`
-→ page reporting seam (`reportPageSession`)
+→ single reporting seam (`reportPageSession`)
 
 ## Field Session Lifecycle
 
@@ -101,8 +99,8 @@ On page session end:
 - Tracked `input` events update internal accumulators used to derive input/autofill behavioral metrics on completion.
 - Additional `keydown` events update interval summaries.
 - Session ends on tracked input `blur`, or when the page session ends while the field is still open.
-- On session end, `TypingVelocityService.completeSession(fieldId)` returns summary metrics.
-- Sessions with no recorded activity (focused but never typed in or changed) are treated as empty and are not reported.
+- On session end, `TypingVelocityService.completeSession(fieldId)` returns summary metrics, which the orchestrator collects into the active page session (it is not reported on its own).
+- Sessions with no recorded activity (focused but never typed in or changed) are treated as empty and are not collected.
 
 ## Page Session Lifecycle
 
@@ -113,7 +111,7 @@ The keystroke module never decides what a "page" is; it responds to lifecycle ca
 
 Behavior notes:
 
-- Field-level reporting is unchanged and still fires on each `blur`; page-session reporting is additive. Every completed field's metrics are both reported at the field level and collected into the active page session.
+- There is a single reporting path: `reportPageSession`. Completed field metrics are collected on `blur` but not reported individually; they are emitted together in the page session's `PageSessionMetrics`.
 - Because `endPageSession()` flushes and clears all open field sessions, a subsequent `beginPageSession()` starts cleanly with no carryover.
 - A page session with no field activity still emits a `PageSessionMetrics` with an empty `fields` array; nothing is silently dropped.
 - Angular Router is intentionally kept out of the module. The sandbox uses a `pagehide` listener as the default `endPageSession` trigger; production applications remove that listener and drive `beginPageSession`/`endPageSession` from their own navigation system.
@@ -127,13 +125,13 @@ Behavior notes:
 | How to measure (field) | `typing-velocity.service.ts` | Reusable, DOM-free field math |
 | Page session lifecycle + aggregation | `page-session.service.ts` | Session batching kept off both the field-math and DOM layers |
 | What to emit | `typing-velocity.model.ts` + `page-session.model.ts` | Stable contracts between layers |
-| Where to send it | `reportTypingVelocity()` / `reportPageSession()` in orchestrator | POC: `console.log`; production: swap only these |
+| Where to send it | `reportPageSession()` in orchestrator | Single reporting path. POC: `console.log`; production: swap only this |
 
 - Browser event ownership and filtering are orchestration concerns.
 - Velocity calculation is a measurement concern.
 - Reporting is an integration concern.
 
-This separation minimizes coupling and makes it easier to replace the POC reporting body with production reporting (for example, `reportTypingVelocity(...)`) without changing measurement logic.
+This separation minimizes coupling and makes it easier to replace the POC reporting body with production reporting (`reportPageSession(...)`) without changing measurement logic.
 
 Without this structure you would duplicate "is this a tracked input?" logic, tie velocity math to DOM events, and couple reporting to implicit object shapes—each of which makes production integration harder.
 
@@ -149,16 +147,15 @@ No metric recalculation logic needs to move into the keystroke-tracking service.
 
 ## Replace and Remove Checklist
 
-Line numbers below match the sandbox as of this writing. Prefer searching for `POC-only` if files have drifted.
+Prefer searching for `POC-only` / `TEMP` if files have drifted.
 
 ### Replace (keep the method; change only the body)
 
 | File | Method | Action |
 | --- | --- | --- |
-| `src/app/services/TS-services/keystroke-tracking.service.ts` | `reportTypingVelocity` | Keep the method. Replace the body so it publishes the field `metrics` to the enterprise event/reporting API. |
-| `src/app/services/TS-services/keystroke-tracking.service.ts` | `reportPageSession` | Keep the method. Replace the body so it publishes the completed `PageSessionMetrics` to the enterprise event/reporting API. |
+| `src/app/services/TS-services/keystroke-tracking.service.ts` | `reportPageSession` | Keep the method. Replace the body so it publishes the completed `PageSessionMetrics` to the enterprise event/reporting API instead of logging to the console (`TEMP`). |
 
-Both reporting seams currently log to the console (`TEMP`). Replace only the method bodies; keep the signatures so measurement and lifecycle code stay untouched.
+Replace only the method body; keep the signature so measurement and lifecycle code stay untouched.
 
 The public `beginPageSession()` / `endPageSession()` methods are the production integration surface for the page-session lifecycle: keep them and call them from the host's navigation system.
 
@@ -166,14 +163,6 @@ The public `beginPageSession()` / `endPageSession()` methods are the production 
 
 | File | Location | What to delete |
 | --- | --- | --- |
-| `src/app/services/TS-services/keystroke-tracking.service.ts` | `sessionMetrics` signal | `sessionMetrics` signal and its POC comment. Also drop `signal` from the `@angular/core` import if it becomes unused. |
 | `src/app/services/TS-services/keystroke-tracking.service.ts` | `pagehide` wiring | The POC-only `pagehide` listener registration in `initialize()` and the `onPageHide` handler. Drive `endPageSession()` from the host's navigation system instead. |
-| `src/app/pages/login/login.component.ts` | `1` | `JsonPipe` import. |
-| `src/app/pages/login/login.component.ts` | `5–6` | `KeystrokeTrackingService` import and its POC comment. |
-| `src/app/pages/login/login.component.ts` | `15` | `imports: [JsonPipe]` (or remove `JsonPipe` from `imports` if other imports remain). |
-| `src/app/pages/login/login.component.ts` | `23–24` | `keystrokeTrackingService` inject. |
-| `src/app/pages/login/login.component.ts` | `29–31` | `typingVelocitySessions` and `sessionCount`. |
-| `src/app/pages/login/login.component.html` | `77–103` | Metrics panel (`details.metrics-card` block). |
-| `src/app/pages/login/login.component.scss` | `64–149` | All `.metrics-*` styles. |
 
-After those edits, `KeystrokeTrackingService` should again be orchestration-only (listeners + lifecycle → measurement → `reportTypingVelocity` / `reportPageSession`), and the login page should have no dependency on keystroke tracking.
+The login page has no dependency on keystroke tracking. After the `pagehide` removal, `KeystrokeTrackingService` is orchestration-only (listeners + lifecycle → measurement/aggregation → `reportPageSession`).
