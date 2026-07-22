@@ -1,0 +1,25 @@
+<!-- POC-only: page-session metrics panel to inspect reports in the UI. Remove when the PoC is no longer needed. -->
+<section class="metrics-section" aria-live="polite">
+  <header class="metrics-header">
+    <h2>Page Session Metrics</h2>
+    <span class="metrics-count">{{ pageSessionCount() }}</span>
+  </header>
+
+  @if (pageSessionCount() === 0) {
+    <p class="empty-state">Where session metrics are presented</p>
+  } @else {
+    <ul class="metrics-list">
+      @for (session of pageSessions(); track $index) {
+        <li>
+          <details class="metrics-session">
+            <summary>
+              <span>Session #{{ pageSessionCount() - $index }}</span>
+              <span class="metrics-session-meta">{{ session.fields.length }} fields</span>
+            </summary>
+            <pre>{{ session | json }}</pre>
+          </details>
+        </li>
+      }
+    </ul>
+  }
+</section>

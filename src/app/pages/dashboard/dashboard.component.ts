@@ -2,6 +2,8 @@ import { DecimalPipe } from '@angular/common';
 import { Component, computed, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 
+// POC-only: shared page-session metrics panel. Remove when the PoC ends.
+import { PageSessionMetricsComponent } from '../../components/page-session-metrics/page-session-metrics.component';
 import { LoanService } from '../../services/loan.service';
 // POC-only: lets the Logout button flush Page Session Metrics to the console/panel. Remove when the PoC ends.
 import { KeystrokeTrackingService } from '../../services/TS-services/keystroke-tracking.service';
@@ -9,7 +11,8 @@ import { SessionService } from '../../services/session.service';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DecimalPipe, RouterLink],
+  // POC-only: PageSessionMetricsComponent renders the page-session metrics panel.
+  imports: [DecimalPipe, RouterLink, PageSessionMetricsComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })

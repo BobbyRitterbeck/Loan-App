@@ -1,6 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
+// POC-only: shared page-session metrics panel. Remove when the PoC ends.
+import { PageSessionMetricsComponent } from '../../components/page-session-metrics/page-session-metrics.component';
 // POC-only: lets the Login button flush Page Session Metrics to the console. Remove when the PoC ends.
 import { KeystrokeTrackingService } from '../../services/TS-services/keystroke-tracking.service';
 import { SessionService } from '../../services/session.service';
@@ -11,7 +13,8 @@ const MIN_PASSWORD_LENGTH = 8;
 
 @Component({
   selector: 'app-login',
-  imports: [],
+  // POC-only: PageSessionMetricsComponent renders the page-session metrics panel.
+  imports: [PageSessionMetricsComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
 })

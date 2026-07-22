@@ -72,3 +72,9 @@ h1 {
   margin: 0;
   color: var(--text-muted);
 }
+
+/* POC-only: spacing for the shared page-session metrics panel. Remove with the panel. */
+.metrics-panel {
+  display: block;
+  margin-top: 1.5rem;
+}

@@ -1,0 +1,96 @@
+/* POC-only: page-session metrics panel styles. Remove with the component. */
+:host {
+  display: block;
+}
+
+.metrics-section {
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-color);
+}
+
+.metrics-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.metrics-header h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.metrics-count {
+  min-width: 1.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: rgb(37 99 235 / 10%);
+  color: var(--primary-color);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.empty-state {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.metrics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.metrics-session {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--background-color);
+}
+
+.metrics-session > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.metrics-session > summary::-webkit-details-marker {
+  display: none;
+}
+
+.metrics-session-meta {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.metrics-session[open] > summary {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.metrics-session pre {
+  margin: 0;
+  padding: 0.875rem 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

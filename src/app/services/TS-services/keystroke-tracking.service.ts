@@ -87,7 +87,8 @@ export class KeystrokeTrackingService {
     }
 
     const pageMetrics = this.pageSessionService.end(endTimeStamp, reason);
-    if (pageMetrics) {
+    // Skip reporting page sessions with no tracked field metrics.
+    if (pageMetrics && pageMetrics.fields.length > 0) {
       this.reportPageSession(pageMetrics);
     }
   }
