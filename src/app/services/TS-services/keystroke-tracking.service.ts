@@ -16,7 +16,7 @@ export class KeystrokeTrackingService {
 
   /**
    * POC-only: in-memory session history for the login metrics panel.
-   * Remove this signal (and its import of `signal` if unused) when switching to enterprise reporting.
+   * Remove this signal when switching to enterprise reporting.
    */
   readonly sessionMetrics = signal<TypingVelocityMetrics[]>([]);
 
@@ -28,9 +28,8 @@ export class KeystrokeTrackingService {
 
     this.initialized = true;
 
-    // Capture phase mirrors production keystroke-tracking wiring so tracking runs
-    // regardless of component-level event handlers. Focus/blur do not bubble, so
-    // capture registration is required for them.
+    // Use capture phase to mirror production behavior.
+    // Focus/blur do not bubble, so capture registration is required.
     this.document.addEventListener('focus', this.onFocus, true);
     this.document.addEventListener('keydown', this.onKeydown, true);
     this.document.addEventListener('input', this.onInput, true);
@@ -98,11 +97,9 @@ export class KeystrokeTrackingService {
 
   /**
    * Reporting seam for production keystroke-tracking integration.
-   * Keep this method; replace its body with enterprise event reporting.
-   * POC-only body below: appends to sessionMetrics for the login metrics panel — remove that line at cutover.
+   * TEMP: console logging instead of UI reporting; revert to sessionMetrics.update(...) to re-enable UI.
    */
   private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
-    // POC-only: remove when switching to enterprise reporting.
-    this.sessionMetrics.update((sessions) => [metrics, ...sessions]);
+    console.log('Typing velocity metrics', metrics);
   }
 }

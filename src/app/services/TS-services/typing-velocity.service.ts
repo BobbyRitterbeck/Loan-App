@@ -19,9 +19,14 @@ interface FieldVelocityState {
   firstInputTimeStamp: number | null;
 }
 
+/** Container for field states; will grow to carry page-level session data in later steps. */
+interface PageSessionState {
+  fields: Map<string, FieldVelocityState>;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TypingVelocityService {
-  private readonly fieldStates = new Map<string, FieldVelocityState>();
+  private session: PageSessionState = this.createPageSession();
 
   /** Records a keydown sample for a field to update interval metrics. */
   trackKeydown(fieldId: string, timeStamp: number, repeat: boolean): void {
@@ -30,7 +35,7 @@ export class TypingVelocityService {
       return;
     }
 
-    const state = this.fieldStates.get(fieldId) ?? this.createFieldState();
+    const state = this.session.fields.get(fieldId) ?? this.createFieldState();
 
     state.totalKeystrokes += 1;
 
@@ -46,7 +51,7 @@ export class TypingVelocityService {
     }
 
     state.lastKeydownTimeStamp = timeStamp;
-    this.fieldStates.set(fieldId, state);
+    this.session.fields.set(fieldId, state);
   }
 
   /** Records a field gaining focus to anchor focus-relative timing metrics. */
@@ -55,7 +60,7 @@ export class TypingVelocityService {
       return;
     }
 
-    const state = this.fieldStates.get(fieldId) ?? this.createFieldState();
+    const state = this.session.fields.get(fieldId) ?? this.createFieldState();
 
     // Focus marks the start of an interaction; all focus-relative timings baseline here.
     if (state.focusTimeStamp === null) {
@@ -66,7 +71,7 @@ export class TypingVelocityService {
       state.htmlInputType = htmlInputType;
     }
 
-    this.fieldStates.set(fieldId, state);
+    this.session.fields.set(fieldId, state);
   }
 
   /** Records a browser input sample to preserve non-typing interaction signals. */
@@ -81,7 +86,7 @@ export class TypingVelocityService {
       return;
     }
 
-    const state = this.fieldStates.get(fieldId) ?? this.createFieldState();
+    const state = this.session.fields.get(fieldId) ?? this.createFieldState();
 
     // Untrusted events are script-dispatched; a single occurrence is a meaningful signal.
     if (!isTrusted) {
@@ -106,7 +111,7 @@ export class TypingVelocityService {
       state.htmlInputType = htmlInputType;
     }
 
-    this.fieldStates.set(fieldId, state);
+    this.session.fields.set(fieldId, state);
   }
 
   /**
@@ -114,13 +119,13 @@ export class TypingVelocityService {
    * Returns null when there is no session or when the session recorded no activity.
    */
   completeSession(fieldId: string): TypingVelocityMetrics | null {
-    const state = this.fieldStates.get(fieldId);
+    const state = this.session.fields.get(fieldId);
     if (!state) {
       return null;
     }
 
     // Session is single-use: once reported, a new keystroke starts a fresh session.
-    this.fieldStates.delete(fieldId);
+    this.session.fields.delete(fieldId);
 
     // Focus-only sessions carry no behavioral signal; skip reporting them.
     if (this.isEmptySession(state)) {
@@ -178,6 +183,10 @@ export class TypingVelocityService {
       }
     }
     return dominantType;
+  }
+
+  private createPageSession(): PageSessionState {
+    return { fields: new Map() };
   }
 
   private createFieldState(): FieldVelocityState {
