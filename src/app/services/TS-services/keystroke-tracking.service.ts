@@ -1,17 +1,20 @@
 import { DOCUMENT } from '@angular/common';
 import { Injectable, inject, signal } from '@angular/core';
 
+import { PageSessionMetrics } from '../../models/page-session.model';
 import { TypingVelocityMetrics } from '../../models/typing-velocity.model';
 import {
   getKeystrokeTrackedFieldId,
   isKeystrokeTrackableInputElement,
 } from './keystroke-tracking-utils';
+import { PageSessionService } from './page-session.service';
 import { TypingVelocityService } from './typing-velocity.service';
 
 @Injectable({ providedIn: 'root' })
 export class KeystrokeTrackingService {
   private readonly document = inject(DOCUMENT);
   private readonly typingVelocityService = inject(TypingVelocityService);
+  private readonly pageSessionService = inject(PageSessionService);
   private initialized = false;
 
   /**
@@ -34,7 +37,41 @@ export class KeystrokeTrackingService {
     this.document.addEventListener('keydown', this.onKeydown, true);
     this.document.addEventListener('input', this.onInput, true);
     this.document.addEventListener('blur', this.onBlur, true);
+
+    // The module does not decide what a "page" is; the host drives the lifecycle.
+    this.beginPageSession();
+
+    // POC-only default end trigger. Production removes this line and calls
+    // endPageSession() from its own navigation system (e.g. router events).
+    this.document.defaultView?.addEventListener('pagehide', this.onPageHide);
   }
+
+  /** Starts a page session. Hosts call this on page/route enter. */
+  beginPageSession(): void {
+    this.pageSessionService.begin();
+  }
+
+  /**
+   * Ends the active page session, flushing any still-open field sessions, and
+   * reports the aggregated result. Hosts call this on page/route leave.
+   */
+  endPageSession(): void {
+    // Flush fields left open at page end so their metrics are not lost.
+    for (const metrics of this.typingVelocityService.completeAllSessions()) {
+      this.reportTypingVelocity(metrics);
+      this.pageSessionService.addFieldMetrics(metrics);
+    }
+
+    const pageMetrics = this.pageSessionService.end();
+    if (pageMetrics) {
+      this.reportPageSession(pageMetrics);
+    }
+  }
+
+  // POC-only default end trigger; see initialize().
+  private readonly onPageHide = (): void => {
+    this.endPageSession();
+  };
 
   private readonly onFocus = (event: Event): void => {
     const inputElement = event.target as HTMLElement;
@@ -92,6 +129,7 @@ export class KeystrokeTrackingService {
     if (metrics) {
       // Orchestration layer does not compute metrics; it forwards completed output.
       this.reportTypingVelocity(metrics);
+      this.pageSessionService.addFieldMetrics(metrics);
     }
   };
 
@@ -101,5 +139,13 @@ export class KeystrokeTrackingService {
    */
   private reportTypingVelocity(metrics: TypingVelocityMetrics): void {
     console.log('Typing velocity metrics', metrics);
+  }
+
+  /**
+   * Reporting seam for a completed page session's aggregated field metrics.
+   * TEMP: console logging; production swaps this body for enterprise reporting.
+   */
+  private reportPageSession(metrics: PageSessionMetrics): void {
+    console.log('Page session metrics', metrics);
   }
 }
