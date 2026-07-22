@@ -1,16 +1,24 @@
-import { Component } from '@angular/core';
+import { JsonPipe } from '@angular/common';
+import { Component, computed, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
 import { KeystrokeTrackingService } from './services/TS-services/keystroke-tracking.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  // POC-only: JsonPipe is used by the page-session metrics panel.
+  imports: [RouterOutlet, JsonPipe],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
-  constructor(private readonly keystrokeTrackingService: KeystrokeTrackingService) {
+  private readonly keystrokeTrackingService = inject(KeystrokeTrackingService);
+
+  // POC-only: page-session report history for the sandbox display panel.
+  readonly pageSessions = this.keystrokeTrackingService.pageSessionMetrics;
+  readonly pageSessionCount = computed(() => this.pageSessions().length);
+
+  constructor() {
     this.keystrokeTrackingService.initialize();
   }
 

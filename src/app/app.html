@@ -1,1 +1,24 @@
 <router-outlet />
+
+<!-- POC-only: page-session metrics panel to inspect reports in the UI. Remove when the PoC is no longer needed. -->
+<details class="metrics-card" aria-live="polite">
+  <summary>
+    Page session metrics
+    <span class="metrics-count">{{ pageSessionCount() }}</span>
+  </summary>
+
+  @if (pageSessionCount() === 0) {
+    <p class="metrics-empty">End a page session (e.g. click Login) to record metrics.</p>
+  } @else {
+    <ul class="metrics-list">
+      @for (session of pageSessions(); track $index) {
+        <li>
+          <details class="metrics-session">
+            <summary>#{{ pageSessionCount() - $index }} · {{ session.fields.length }} fields</summary>
+            <pre>{{ session | json }}</pre>
+          </details>
+        </li>
+      }
+    </ul>
+  }
+</details>

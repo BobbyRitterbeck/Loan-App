@@ -23,8 +23,9 @@ Files are listed in execution order (startup → runtime).
   - Registers a `pagehide` listener as a fallback end trigger for document teardown (safety net; the host normally drives the lifecycle explicitly).
 - `src/app/services/TS-services/page-session.service.ts`
   - Owns the page-session lifecycle (`start`, `end`, `isActive`) and aggregates completed `TypingVelocityMetrics` into a `PageSessionMetrics` batch.
+  - Computes page-level behavioral metrics (session duration, time-to-first-interaction/input, field-transition summary, idle time) from primitive timing signals fed by the orchestrator (`recordInteraction`, `recordInput`, `recordFieldFocus`, `recordFieldCompletion`).
   - Stores host-provided `pageId`/`reason` as session metadata (reserved for future reporting; not emitted yet).
-  - Performs no measurement and no DOM work.
+  - Performs no per-field measurement and no DOM work.
 - `src/app/services/TS-services/keystroke-tracking-utils.ts`
   - Shared helpers for tracked-input detection and field identification.
 - `src/app/services/TS-services/keystroke-tracking.constants.ts`
@@ -36,7 +37,7 @@ Files are listed in execution order (startup → runtime).
 - `src/app/models/typing-velocity.model.ts`
   - Defines the output contract consumed by reporting (`TypingVelocityMetrics`).
 - `src/app/models/page-session.model.ts`
-  - Defines the page-session output contract (`PageSessionMetrics`). Minimal for this phase: an aggregation wrapper around the field metrics collected during the session.
+  - Defines the page-session output contract (`PageSessionMetrics`): page-level behavioral metrics plus the field metrics collected during the session.
 
 ## Why Each File Exists
 
@@ -72,7 +73,7 @@ This service is deliberately **field-scoped**. Page-level session state lives in
 
 A page session is a different granularity than a field session: it spans many fields and has an explicit begin/end lifecycle driven by the host, whereas a field session is implicit (focus → blur). Keeping page-session state and aggregation out of `TypingVelocityService` preserves that service's single responsibility (field math) and out of `KeystrokeTrackingService` keeps session state off the DOM/orchestration layer, consistent with the rest of this architecture.
 
-The service is intentionally minimal for this phase: it collects the `TypingVelocityMetrics` handed to it between `start()` and `end()` and returns them as a batch. It also stores the host-provided `pageId`/`reason` as session metadata so the lifecycle API is enterprise-ready, but it computes no page-level metrics and does not yet emit that metadata. `PageSessionMetrics` is the extension point where a later phase can surface it without changing the reporting seam.
+It collects the `TypingVelocityMetrics` handed to it between `start()` and `end()`, and computes page-level behavioral metrics from primitive timing signals fed by the orchestrator (see "Page Session Metrics"). It keeps only summary accumulators — no arrays of raw transitions or interaction timelines — so state stays small. It also stores the host-provided `pageId`/`reason` as session metadata so the lifecycle API is enterprise-ready, though that metadata is not emitted yet. `PageSessionMetrics` is the extension point where later phases add page-level metrics without changing the reporting seam.
 
 ### `src/app/models/typing-velocity.model.ts`
 
@@ -85,7 +86,8 @@ During the page session (collect only, no reporting):
 Browser Events
 → `KeystrokeTrackingService` global listeners
 → tracked-input filtering (`keystroke-tracking-utils` + `keystroke-tracking.constants`)
-→ `TypingVelocityService` measurement updates
+→ `TypingVelocityService` measurement updates (per-field)
+→ page-level timing signals to `PageSessionService` (`recordInteraction` on focus/keydown/input, `recordInput` on input, `recordFieldFocus` on focus, `recordFieldCompletion` on blur)
 → on `blur`, `TypingVelocityService.completeSession(fieldId)` → `TypingVelocityMetrics`
 → collected into the active page session (`PageSessionService.addFieldMetrics`)
 
@@ -136,6 +138,26 @@ Metadata and reporting:
 Framework independence:
 
 - The module never imports Angular Router, React Router, or any routing library. The only integration point is the pair of public lifecycle methods, demonstrated by the framework-agnostic `App.onHostNavigation()` example seam.
+
+## Page Session Metrics
+
+`PageSessionMetrics` carries page-level behavioral metrics alongside the per-field `fields`. These describe behavior across the whole page and never duplicate per-field metrics. All timestamps share the performance timeline (`performance.now()` for lifecycle, `event.timeStamp` for interactions), so spans are directly comparable; negative spans (clock anomalies) resolve to `null`.
+
+The anchor is `startTimeStamp`, captured when `startPageSession()` runs.
+
+| Metric | Definition |
+| --- | --- |
+| `sessionDurationMs` | `endTimeStamp − startTimeStamp` (both `performance.now()`). |
+| `timeToFirstInteractionMs` | First tracked interaction (`focus`/`keydown`/`input`) minus start; recorded once; `null` if none. |
+| `timeToFirstInputMs` | First `input` event (first text entered anywhere on the page) minus start; recorded once; `null` if none. Distinct from the per-field `msFromFocusToFirstInput`. |
+| `averageTimeBetweenFieldsMs` / `minTimeBetweenFieldsMs` / `maxTimeBetweenFieldsMs` | Summary of field-to-field transitions: time from a field `blur` to the next `focus` on a *different* field. Only running `count`/`sum`/`min`/`max` are stored — no per-transition array. All `null` when there were no transitions. |
+| `totalIdleTimeMs` | Sum of gaps between consecutive tracked interactions that exceed `IDLE_THRESHOLD_MS` (2000 ms). Event-stream driven — no timers or polling. Trailing idle (last interaction → session end) is not counted. Defaults to `0`. |
+
+Design notes:
+
+- "Interaction" is restricted to events the behavior service already tracks (`focus`/`keydown`/`input` on tracked inputs). There is no dedicated `click` listener; adding non-field click tracking later only requires feeding `recordInteraction` from a new listener.
+- `IDLE_THRESHOLD_MS` is a named constant in `page-session.service.ts` — the policy/extension point for the idle definition.
+- The orchestrator feeds primitive timing signals; all computation and state live in `PageSessionService`, keeping measurement DOM-free and the metrics logic in one place.
 
 ## Why Responsibilities Are Separated
 

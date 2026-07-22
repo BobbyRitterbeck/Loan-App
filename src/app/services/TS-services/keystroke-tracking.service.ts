@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 
 import { PageSessionMetrics } from '../../models/page-session.model';
 import {
@@ -15,6 +15,12 @@ export class KeystrokeTrackingService {
   private readonly typingVelocityService = inject(TypingVelocityService);
   private readonly pageSessionService = inject(PageSessionService);
   private initialized = false;
+
+  /**
+   * POC-only: in-memory history of reported page sessions for the sandbox
+   * display panel. Remove this signal when switching to enterprise reporting.
+   */
+  readonly pageSessionMetrics = signal<PageSessionMetrics[]>([]);
 
   /** Registers global keystroke-tracking listeners once during application startup. */
   initialize(): void {
@@ -58,7 +64,7 @@ export class KeystrokeTrackingService {
       return;
     }
 
-    this.pageSessionService.start(pageId);
+    this.pageSessionService.start(performance.now(), pageId);
   }
 
   /**
@@ -73,12 +79,14 @@ export class KeystrokeTrackingService {
       return;
     }
 
+    const endTimeStamp = performance.now();
+
     // Flush fields left open at page end so their metrics are not lost.
     for (const metrics of this.typingVelocityService.completeAllSessions()) {
       this.pageSessionService.addFieldMetrics(metrics);
     }
 
-    const pageMetrics = this.pageSessionService.end(reason);
+    const pageMetrics = this.pageSessionService.end(endTimeStamp, reason);
     if (pageMetrics) {
       this.reportPageSession(pageMetrics);
     }
@@ -95,11 +103,12 @@ export class KeystrokeTrackingService {
       return;
     }
 
-    this.typingVelocityService.trackFocus(
-      getKeystrokeTrackedFieldId(inputElement),
-      event.timeStamp,
-      inputElement.type,
-    );
+    const fieldId = getKeystrokeTrackedFieldId(inputElement);
+    this.typingVelocityService.trackFocus(fieldId, event.timeStamp, inputElement.type);
+
+    // Page-level: focus is a tracked interaction and may close a field transition.
+    this.pageSessionService.recordInteraction(event.timeStamp);
+    this.pageSessionService.recordFieldFocus(fieldId, event.timeStamp);
   };
 
   private readonly onKeydown = (event: Event): void => {
@@ -114,6 +123,8 @@ export class KeystrokeTrackingService {
       keyboardEvent.timeStamp,
       keyboardEvent.repeat,
     );
+
+    this.pageSessionService.recordInteraction(keyboardEvent.timeStamp);
   };
 
   private readonly onInput = (event: Event): void => {
@@ -130,6 +141,10 @@ export class KeystrokeTrackingService {
       inputEvent.timeStamp,
       inputElement.type,
     );
+
+    // Page-level: input is a tracked interaction and marks the first text input.
+    this.pageSessionService.recordInteraction(inputEvent.timeStamp);
+    this.pageSessionService.recordInput(inputEvent.timeStamp);
   };
 
   private readonly onBlur = (event: Event): void => {
@@ -138,14 +153,16 @@ export class KeystrokeTrackingService {
       return;
     }
 
-    const metrics = this.typingVelocityService.completeSession(
-      getKeystrokeTrackedFieldId(inputElement),
-    );
+    const fieldId = getKeystrokeTrackedFieldId(inputElement);
+    const metrics = this.typingVelocityService.completeSession(fieldId);
 
     if (metrics) {
       // Completed field metrics are collected into the page session, not reported here.
       this.pageSessionService.addFieldMetrics(metrics);
     }
+
+    // Page-level: field completion opens a potential field-to-field transition.
+    this.pageSessionService.recordFieldCompletion(fieldId, event.timeStamp);
   };
 
   /**
@@ -154,5 +171,7 @@ export class KeystrokeTrackingService {
    */
   private reportPageSession(metrics: PageSessionMetrics): void {
     console.log('Page session metrics', metrics);
+    // POC-only: expose the report to the sandbox display panel.
+    this.pageSessionMetrics.update((sessions) => [metrics, ...sessions]);
   }
 }
