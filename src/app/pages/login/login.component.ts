@@ -1,6 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
+// POC-only: lets the Login button flush Page Session Metrics to the console. Remove when the PoC ends.
+import { KeystrokeTrackingService } from '../../services/TS-services/keystroke-tracking.service';
 import { SessionService } from '../../services/session.service';
 import { UserService } from '../../services/user.service';
 
@@ -17,6 +19,8 @@ export class LoginComponent {
   private readonly userService = inject(UserService);
   private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
+  // POC-only: remove with the end+restart call in login().
+  private readonly keystrokeTrackingService = inject(KeystrokeTrackingService);
 
   readonly username = signal('');
   readonly email = signal('');
@@ -63,6 +67,10 @@ export class LoginComponent {
     if (!this.canLogin()) {
       return;
     }
+
+    // POC-only: end the current page session (logs Page Session Metrics) and start a fresh one.
+    this.keystrokeTrackingService.endPageSession('manual-test');
+    this.keystrokeTrackingService.startPageSession();
 
     this.sessionService.login(this.trimmedUsername());
     void this.router.navigate(['/dashboard']);
