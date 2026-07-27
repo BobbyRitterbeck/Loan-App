@@ -1,13 +1,5 @@
 import { TypingVelocityMetrics } from './typing-velocity.model';
 
-/**
- * Aggregated output of a single page session: page-level behavioral metrics
- * plus the completed field metrics gathered between startPageSession and
- * endPageSession.
- *
- * Page-level metrics describe behavior across the whole page and are distinct
- * from (never duplicates of) the per-field metrics in `fields`.
- */
 export interface PageSessionMetrics {
   // Time from page session start to end.
   sessionDurationMs: number;
