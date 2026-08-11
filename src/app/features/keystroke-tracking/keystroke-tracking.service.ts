@@ -1,11 +1,12 @@
 import { DOCUMENT } from '@angular/common';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 
-import { PageSessionMetrics } from '../../models/page-session.model';
 import {
   getKeystrokeTrackedFieldId,
   isKeystrokeTrackableInputElement,
 } from './keystroke-tracking-utils';
+import { PageSessionMetrics } from './models/page-session.model';
+import { PAGE_SESSION_REPORTER } from './page-session-reporter';
 import { PageSessionService } from './page-session.service';
 import { TypingVelocityService } from './typing-velocity.service';
 
@@ -14,13 +15,8 @@ export class KeystrokeTrackingService {
   private readonly document = inject(DOCUMENT);
   private readonly typingVelocityService = inject(TypingVelocityService);
   private readonly pageSessionService = inject(PageSessionService);
+  private readonly reporter = inject(PAGE_SESSION_REPORTER);
   private initialized = false;
-
-  /**
-   * POC-only: in-memory history of reported page sessions for the sandbox
-   * display panel. Remove this signal when switching to enterprise reporting.
-   */
-  readonly pageSessionMetrics = signal<PageSessionMetrics[]>([]);
 
   /** Registers global keystroke-tracking listeners once during application startup. */
   initialize(): void {
@@ -38,7 +34,9 @@ export class KeystrokeTrackingService {
     this.document.addEventListener('blur', this.onBlur, true);
 
     // The module does not decide what a "page" is; the host drives the lifecycle.
-    // Start the first session; the host takes over via start/endPageSession.
+    // SANDBOX ONLY: this sandbox has no router wiring, so the first session is
+    // opened here. A production host removes this call and drives every session
+    // from its navigation events instead (see App.onHostNavigation).
     this.startPageSession();
 
     // Fallback only: flush if the document is torn down before the host calls
@@ -167,12 +165,11 @@ export class KeystrokeTrackingService {
   };
 
   /**
-   * Single reporting seam: emits the aggregated field metrics for a page session.
-   * TEMP: console logging; production swaps this body for enterprise reporting.
+   * Single reporting seam: hands the completed page session to the host's
+   * reporter. The module has no opinion about where metrics go; the host decides
+   * by providing PAGE_SESSION_REPORTER.
    */
   private reportPageSession(metrics: PageSessionMetrics): void {
-    console.log('Page session metrics', metrics);
-    // POC-only: expose the report to the sandbox display panel.
-    this.pageSessionMetrics.update((sessions) => [metrics, ...sessions]);
+    this.reporter.report(metrics);
   }
 }

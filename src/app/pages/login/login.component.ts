@@ -1,10 +1,10 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
-// POC-only: shared page-session metrics panel. Remove when the PoC ends.
-import { PageSessionMetricsComponent } from '../../components/page-session-metrics/page-session-metrics.component';
-// POC-only: lets the Login button flush Page Session Metrics to the console. Remove when the PoC ends.
-import { KeystrokeTrackingService } from '../../services/TS-services/keystroke-tracking.service';
+// SANDBOX ONLY: the Login button stands in for router-driven page sessions.
+import { KeystrokeTrackingService } from '../../features/keystroke-tracking';
+// SANDBOX ONLY: demo panel that displays reported page sessions.
+import { PageSessionMetricsComponent } from '../../sandbox/page-session-metrics/page-session-metrics.component';
 import { SessionService } from '../../services/session.service';
 import { UserService } from '../../services/user.service';
 
@@ -13,7 +13,7 @@ const MIN_PASSWORD_LENGTH = 8;
 
 @Component({
   selector: 'app-login',
-  // POC-only: PageSessionMetricsComponent renders the page-session metrics panel.
+  // SANDBOX ONLY: PageSessionMetricsComponent renders the demo metrics panel.
   imports: [PageSessionMetricsComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss',
@@ -22,7 +22,7 @@ export class LoginComponent {
   private readonly userService = inject(UserService);
   private readonly sessionService = inject(SessionService);
   private readonly router = inject(Router);
-  // POC-only: remove with the end+restart call in login().
+  // SANDBOX ONLY: drives the page-session lifecycle from login(); see below.
   private readonly keystrokeTrackingService = inject(KeystrokeTrackingService);
 
   readonly username = signal('');
@@ -71,8 +71,10 @@ export class LoginComponent {
       return;
     }
 
-    // POC-only: end the current page session (logs Page Session Metrics) and start a fresh one.
-    this.keystrokeTrackingService.endPageSession('manual-test');
+    // SANDBOX ONLY: this sandbox is not wired to router navigation events, so the
+    // Login button acts as the host navigation seam. A production host performs
+    // this same end-then-start pair from its own navigation system.
+    this.keystrokeTrackingService.endPageSession('navigation');
     this.keystrokeTrackingService.startPageSession();
 
     this.sessionService.login(this.trimmedUsername());

@@ -60,4 +60,14 @@ For more information on using the Angular CLI, including detailed command refere
 
 ## Typing Velocity Tracking
 
-Feature architecture and production-integration notes are documented in [`docs/typing-velocity.md`](docs/typing-velocity.md).
+This repository is a working reference implementation of a keystroke velocity feature
+intended for transfer into a production application.
+
+- **The feature** lives in `src/app/features/keystroke-tracking/`. Copy that folder as a
+  unit; it depends only on `@angular/core` and `@angular/common`.
+- **Sandbox scaffolding** lives in `src/app/sandbox/` and the demo loan app around it.
+  None of it transfers. Search for `SANDBOX ONLY` to find every scaffolding touch point.
+
+Architecture, the reporting boundary, the transfer checklist, and known issues are
+documented in [`docs/typing-velocity.md`](docs/typing-velocity.md). Recorded metric
+samples from human and scripted sessions are in [`docs/test-results.md`](docs/test-results.md).

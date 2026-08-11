@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-import { KeystrokeTrackingService } from './services/TS-services/keystroke-tracking.service';
+import { KeystrokeTrackingService } from './features/keystroke-tracking';
 
 @Component({
   selector: 'app-root',

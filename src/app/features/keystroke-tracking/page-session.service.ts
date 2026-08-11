@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
-import { PageSessionMetrics } from '../../models/page-session.model';
-import { TypingVelocityMetrics } from '../../models/typing-velocity.model';
+import { PageSessionMetrics } from './models/page-session.model';
+import { TypingVelocityMetrics } from './models/typing-velocity.model';
 
 // Minimum gap (ms) between tracked interactions for that gap to count as idle
 // time. Policy/extension point for the page-session behavior model.
